@@ -1,0 +1,153 @@
+import { useEffect, useState } from 'react'
+import { ChevronLeft, Plus, Trash2, FileText, Clock } from 'lucide-react'
+import { useStore } from '../store/StoreProvider'
+import { Modal, Field, EmptyState } from './ui'
+import RichEditor, { useAutosaveContent, SaveStatus } from './RichEditor'
+import { formatBR, todayISO, DAYS } from '../lib/utils'
+
+// Painel do editor — remontado por anotação (key) para isolar carregamento/salvamento
+function NoteEditorPane({ note }) {
+  const { updNote, delNote } = useStore()
+  const { initial, status, onChange } = useAutosaveContent(`note:${note.id}`)
+
+  return (
+    <div className="note-editor-pane">
+      <div className="note-editor-head">
+        <input
+          className="note-title-input"
+          value={note.title}
+          onChange={e => updNote(note.id, { title: e.target.value })}
+          placeholder="Título da anotação"
+        />
+        <input
+          type="date"
+          className="note-date-input"
+          value={note.date || ''}
+          onChange={e => updNote(note.id, { date: e.target.value })}
+          title="Data da aula"
+        />
+        <SaveStatus status={status} />
+        <button
+          className="icon-btn danger"
+          title="Excluir anotação"
+          onClick={() => { if (confirm(`Excluir a anotação "${note.title}"?`)) delNote(note.id) }}
+        ><Trash2 size={16} /></button>
+      </div>
+
+      {initial === undefined
+        ? <div className="editor-loading">Carregando anotação…</div>
+        : <RichEditor initial={initial} onChange={onChange} />}
+    </div>
+  )
+}
+
+export default function ClassView({ classId }) {
+  const { data, nav, addNote } = useStore()
+  const [selId, setSelId] = useState(null)
+  const [modal, setModal] = useState(false)
+  const [title, setTitle] = useState('')
+  const [date, setDate] = useState(todayISO())
+
+  const cls = data.classes.find(c => c.id === classId)
+  const notes = data.notes
+    .filter(n => n.classId === classId)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.updatedAt - a.updatedAt)
+
+  // Mantém uma anotação válida selecionada
+  useEffect(() => {
+    if (!notes.find(n => n.id === selId)) setSelId(notes[0]?.id ?? null)
+  }, [notes.length, selId, classId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!cls) {
+    return (
+      <div className="view">
+        <button className="btn-ghost" onClick={() => nav('studies')}><ChevronLeft size={16} /> Voltar</button>
+        <p className="panel-empty">Aula não encontrada.</p>
+      </div>
+    )
+  }
+
+  const selected = notes.find(n => n.id === selId)
+
+  const openNewNote = () => {
+    setTitle(`Aula ${notes.length + 1}`)
+    setDate(todayISO())
+    setModal(true)
+  }
+
+  const createNote = e => {
+    e.preventDefault()
+    const n = addNote(classId, { title: title.trim() || `Aula ${notes.length + 1}`, date })
+    setSelId(n.id)
+    setModal(false)
+  }
+
+  return (
+    <div className="view view-wide class-view">
+      <header className="view-head">
+        <div>
+          <button className="btn-back" onClick={() => nav('semester', { semesterId: cls.semesterId })}>
+            <ChevronLeft size={16} /> Voltar à grade
+          </button>
+          <h1><span className="class-dot" style={{ background: cls.color }} /> {cls.name}</h1>
+          <p className="view-sub">
+            {(cls.slots || []).map(s => `${DAYS[s.day]} ${s.start}–${s.end}`).join(' · ')}
+            {cls.professor ? ` · Prof. ${cls.professor}` : ''}
+          </p>
+        </div>
+        <button className="btn-primary" onClick={openNewNote}><Plus size={16} /> Nova anotação</button>
+      </header>
+
+      {notes.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="Nenhuma anotação ainda"
+          text={`Crie sua primeira anotação desta matéria — ex.: "Aula 1 — ${formatBR(todayISO())}".`}
+        >
+          <button className="btn-primary" onClick={openNewNote}><Plus size={16} /> Criar anotação</button>
+        </EmptyState>
+      ) : (
+        <div className="class-layout">
+          <aside className="notes-list panel">
+            <div className="panel-head"><h2>Anotações</h2><small className="panel-sub">{notes.length}</small></div>
+            <ul>
+              {notes.map(n => (
+                <li
+                  key={n.id}
+                  className={'note-item' + (n.id === selId ? ' selected' : '')}
+                  onClick={() => setSelId(n.id)}
+                >
+                  <strong>{n.title}</strong>
+                  <small><Clock size={11} /> {n.date ? formatBR(n.date) : 'sem data'}</small>
+                </li>
+              ))}
+            </ul>
+          </aside>
+
+          <section className="panel note-editor-panel">
+            {selected
+              ? <NoteEditorPane key={selected.id} note={selected} />
+              : <p className="panel-empty">Selecione uma anotação ao lado.</p>}
+          </section>
+        </div>
+      )}
+
+      {modal && (
+        <Modal title="Nova anotação" onClose={() => setModal(false)} width={420}>
+          <form onSubmit={createNote} className="modal-form">
+            <Field label="Título" hint="Sugestão automática seguindo sua numeração de aulas.">
+              <input value={title} onChange={e => setTitle(e.target.value)} autoFocus />
+            </Field>
+            <Field label="Data da aula">
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} required />
+            </Field>
+            <div className="modal-actions">
+              <button type="button" className="btn-ghost" onClick={() => setModal(false)}>Cancelar</button>
+              <button type="submit" className="btn-primary">Criar</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  )
+}
