@@ -17,6 +17,55 @@ const EMPTY = {
 
 export const DEFAULT_WORK_TABS = ['Descrição', 'Rascunho', 'Desenvolvimento']
 
+// ---------- derivações do vínculo aula → semestre → ano ----------
+export function classInfo(data, classId) {
+  const cls = data.classes.find(c => c.id === classId)
+  const sem = cls ? data.semesters.find(s => s.id === cls.semesterId) : null
+  const year = sem ? data.years.find(y => y.id === sem.yearId) : null
+  return { cls, sem, year }
+}
+
+export const termLabel = (sem, year) =>
+  sem && year ? `${year.number}º Ano · ${sem.number}º Sem` : ''
+
+// Aulas agrupadas por ano/semestre, em ordem — para selects e filtros
+export function classGroups(data) {
+  const years = [...data.years].sort((a, b) => a.number - b.number)
+  const groups = []
+  for (const y of years) {
+    const sems = data.semesters.filter(s => s.yearId === y.id).sort((a, b) => a.number - b.number)
+    for (const s of sems) {
+      const classes = data.classes.filter(c => c.semesterId === s.id)
+      if (classes.length) groups.push({ year: y, sem: s, classes })
+    }
+  }
+  return groups
+}
+
+// Select de matéria com optgroups "1º Ano · 1º Semestre (2024)"
+export function ClassSelect({ data, value, onChange, required }) {
+  const groups = classGroups(data)
+  return (
+    <select value={value} onChange={onChange} required={required}>
+      <option value="" disabled>Selecione a matéria…</option>
+      {groups.map(g => (
+        <optgroup
+          key={g.sem.id}
+          label={`${g.year.number}º Ano · ${g.sem.number}º Semestre${g.year.calendarYear ? ` (${g.year.calendarYear})` : ''}`}
+        >
+          {g.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </optgroup>
+      ))}
+    </select>
+  )
+}
+
+// Aula sugerida ao criar trabalho/prova: primeira do semestre atual, senão a primeira geral
+export function defaultClassId(data) {
+  const active = data.classes.find(c => c.semesterId === data.activeSemesterId)
+  return (active || data.classes[0])?.id || ''
+}
+
 export function StoreProvider({ user, onLogout, onUpdateUser, children }) {
   const storageKey = `jahint:data:${user.id}`
 

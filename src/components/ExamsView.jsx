@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { FileText, Plus, Pencil, Trash2, Clock, ChevronDown } from 'lucide-react'
-import { useStore } from '../store/StoreProvider'
+import { useStore, classInfo, termLabel, ClassSelect, defaultClassId } from '../store/StoreProvider'
 import { Modal, Field, DueChip, EmptyState } from './ui'
 import { formatBR, todayISO, daysUntil } from '../lib/utils'
 
 const LABELS = ['P1', 'P2', 'P3', 'Substitutiva', 'Exame final', 'Outro']
 
-function ExamFormModal({ initial, onClose }) {
+function ExamFormModal({ initial, onClose, onSaved }) {
   const { data, addExam, updExam } = useStore()
   const isCustom = initial && !LABELS.includes(initial.label)
-  const [classId, setClassId] = useState(initial?.classId || data.classes[0]?.id || '')
+  const [classId, setClassId] = useState(() => initial?.classId || defaultClassId(data))
   const [label, setLabel] = useState(isCustom ? 'Outro' : initial?.label || 'P1')
   const [customLabel, setCustomLabel] = useState(isCustom ? initial.label : '')
   const [date, setDate] = useState(initial?.date || todayISO())
@@ -22,17 +22,15 @@ function ExamFormModal({ initial, onClose }) {
     const payload = { classId, label: finalLabel, date, time, topics }
     if (initial) updExam(initial.id, payload)
     else addExam(payload)
+    onSaved?.(classId)
     onClose()
   }
 
   return (
     <Modal title={initial ? 'Editar prova' : 'Nova prova'} onClose={onClose} width={500}>
       <form onSubmit={save} className="modal-form">
-        <Field label="Matéria *">
-          <select value={classId} onChange={e => setClassId(e.target.value)} required>
-            <option value="" disabled>Selecione a matéria…</option>
-            {data.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+        <Field label="Matéria *" hint="A matéria define o ano e o semestre da prova.">
+          <ClassSelect data={data} value={classId} onChange={e => setClassId(e.target.value)} required />
         </Field>
         <div className="form-grid">
           <Field label="Tipo de prova">
@@ -65,18 +63,28 @@ function ExamFormModal({ initial, onClose }) {
 }
 
 export default function ExamsView() {
-  const { data, delExam } = useStore()
+  const { data, delExam, route } = useStore()
   const [modal, setModal] = useState(null) // {} novo | { initial } edição
   const [showPast, setShowPast] = useState(false)
+  // Começa no ano pedido pela navegação (ex.: clique no dashboard),
+  // senão no ano do semestre atual — "o ano em que estou"
+  const [fYear, setFYear] = useState(
+    () => route.yearId || data.semesters.find(s => s.id === data.activeSemesterId)?.yearId || 'todos'
+  )
 
   const cls = id => data.classes.find(c => c.id === id)
+  const fYearSafe = data.years.some(y => y.id === fYear) ? fYear : 'todos'
+  const years = [...data.years].sort((a, b) => a.number - b.number)
 
-  const sorted = [...data.exams].sort((a, b) => a.date.localeCompare(b.date))
+  const sorted = data.exams
+    .filter(e => (fYearSafe === 'todos' ? true : classInfo(data, e.classId).year?.id === fYearSafe))
+    .sort((a, b) => a.date.localeCompare(b.date))
   const future = sorted.filter(e => daysUntil(e.date) >= 0)
   const past = sorted.filter(e => daysUntil(e.date) < 0).reverse()
 
   const ExamCard = ({ exam, faded }) => {
     const c = cls(exam.classId)
+    const { sem, year } = classInfo(data, exam.classId)
     return (
       <div className={'panel exam-card' + (faded ? ' faded' : '')}>
         <div className="exam-card-left" style={{ '--cls-color': c?.color || '#94a3b8' }}>
@@ -87,6 +95,7 @@ export default function ExamsView() {
           <div className="exam-meta">
             <span>📅 {formatBR(exam.date)}</span>
             {exam.time && <span><Clock size={13} /> {exam.time}</span>}
+            {year && <span className="term-chip">{termLabel(sem, year)}</span>}
             {!faded && <DueChip date={exam.date} />}
           </div>
           {exam.topics && <p className="exam-topics">📚 {exam.topics}</p>}
@@ -131,8 +140,23 @@ export default function ExamsView() {
         </EmptyState>
       ) : (
         <>
+          <div className="filter-bar">
+            <select value={fYearSafe} onChange={e => setFYear(e.target.value)} title="Filtrar pelo ano letivo">
+              <option value="todos">Todos os anos</option>
+              {years.map(y => (
+                <option key={y.id} value={y.id}>
+                  {y.number}º Ano{y.calendarYear ? ` (${y.calendarYear})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="exams-list">
-            {future.length === 0 && <p className="panel-empty">Nenhuma prova futura. 🎉</p>}
+            {future.length === 0 && (
+              <p className="panel-empty">
+                {sorted.length === 0 ? 'Nenhuma prova neste ano letivo.' : 'Nenhuma prova futura. 🎉'}
+              </p>
+            )}
             {future.map(e => <ExamCard key={e.id} exam={e} />)}
           </div>
 
@@ -152,7 +176,17 @@ export default function ExamsView() {
         </>
       )}
 
-      {modal && <ExamFormModal initial={modal.initial} onClose={() => setModal(null)} />}
+      {modal && (
+        <ExamFormModal
+          initial={modal.initial}
+          onClose={() => setModal(null)}
+          onSaved={classId => {
+            // A prova salva não pode sumir atrás do filtro: se for de outro ano, segue para ele
+            const y = classInfo(data, classId).year?.id
+            if (y && fYearSafe !== 'todos' && y !== fYearSafe) setFYear(y)
+          }}
+        />
+      )}
     </div>
   )
 }

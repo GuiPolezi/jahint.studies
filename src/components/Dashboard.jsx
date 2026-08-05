@@ -2,7 +2,7 @@ import {
   CalendarClock, Briefcase, FileText, BookOpen, AlertTriangle,
   Sparkles, ChevronRight, Clock,
 } from 'lucide-react'
-import { useStore } from '../store/StoreProvider'
+import { useStore, classInfo, termLabel } from '../store/StoreProvider'
 import { daysUntil, urgency, urgencyLabel, formatBR, DAYS } from '../lib/utils'
 import { DueChip, EmptyState } from './ui'
 
@@ -11,6 +11,10 @@ export default function Dashboard() {
 
   const className = id => data.classes.find(c => c.id === id)?.name || 'Aula removida'
   const classColor = id => data.classes.find(c => c.id === id)?.color || '#94a3b8'
+  const classTerm = id => {
+    const { sem, year } = classInfo(data, id)
+    return termLabel(sem, year)
+  }
 
   // Junta provas + trabalhos pendentes numa única linha do tempo
   const items = [
@@ -18,7 +22,9 @@ export default function Dashboard() {
       id: e.id, kind: 'prova', date: e.date,
       title: `${e.label} · ${className(e.classId)}`,
       color: classColor(e.classId),
-      go: () => nav('exams'),
+      term: classTerm(e.classId),
+      // Passa o ano da prova para a tela abrir já filtrada nele
+      go: () => nav('exams', { yearId: classInfo(data, e.classId).year?.id }),
     })),
     ...data.works
       .filter(w => (w.progress ?? 0) < 100 && w.dueDate)
@@ -26,6 +32,7 @@ export default function Dashboard() {
         id: w.id, kind: w.type === 'trabalho' ? 'trabalho' : 'tarefa', date: w.dueDate,
         title: `${w.title} · ${className(w.classId)}`,
         color: classColor(w.classId),
+        term: classTerm(w.classId),
         go: () => nav('work', { workId: w.id }),
       })),
   ].filter(i => i.date)
@@ -150,7 +157,7 @@ export default function Dashboard() {
                       <span className="date-kind">{kindIcon(item.kind)}</span>
                       <div className="date-text">
                         <strong>{item.title}</strong>
-                        <small>{kindLabel(item.kind)} · {formatBR(item.date)}</small>
+                        <small>{kindLabel(item.kind)} · {formatBR(item.date)}{item.term ? ` · ${item.term}` : ''}</small>
                       </div>
                       <DueChip date={item.date} />
                       <ChevronRight size={16} className="date-arrow" />

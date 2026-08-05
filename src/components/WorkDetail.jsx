@@ -3,7 +3,7 @@ import {
   ChevronLeft, Trash2, Plus, X, Upload, Download,
   File, FileText, FileArchive, FileCode, FileImage,
 } from 'lucide-react'
-import { useStore } from '../store/StoreProvider'
+import { useStore, classInfo, termLabel, ClassSelect } from '../store/StoreProvider'
 import { DueChip } from './ui'
 import RichEditor, { useAutosaveContent, SaveStatus } from './RichEditor'
 import { uid, formatBytes } from '../lib/utils'
@@ -57,6 +57,7 @@ export default function WorkDetail({ workId }) {
   }
 
   const cls = data.classes.find(c => c.id === work.classId)
+  const { sem, year } = classInfo(data, work.classId)
   const activeTab = work.tabs.find(t => t.id === tabId)
   const done = (work.progress ?? 0) >= 100
 
@@ -108,7 +109,7 @@ export default function WorkDetail({ workId }) {
     <div className="view view-wide">
       <header className="view-head">
         <div>
-          <button className="btn-back" onClick={() => nav('works')}><ChevronLeft size={16} /> Trabalhos</button>
+          <button className="btn-back" onClick={() => nav('works', { yearId: year?.id })}><ChevronLeft size={16} /> Trabalhos</button>
           <input
             className="note-title-input work-title"
             value={work.title}
@@ -116,13 +117,14 @@ export default function WorkDetail({ workId }) {
           />
           <p className="view-sub">
             {cls && <span className="class-chip" style={{ '--cls-color': cls.color }}>{cls.name}</span>}
+            {year && <span className="term-chip">{termLabel(sem, year)}</span>}
             {' '}<span className={'type-badge ' + work.type}>{work.type === 'trabalho' ? 'Trabalho (final)' : 'Tarefa'}</span>
             {' '}{done ? <span className="due-chip due-done">Concluído 🎉</span> : <DueChip date={work.dueDate} />}
           </p>
         </div>
         <button
           className="btn-danger"
-          onClick={() => { if (confirm(`Excluir "${work.title}" e todas as suas anotações e arquivos?`)) { delWork(work.id); nav('works') } }}
+          onClick={() => { if (confirm(`Excluir "${work.title}" e todas as suas anotações e arquivos?`)) { delWork(work.id); nav('works', { yearId: year?.id }) } }}
         ><Trash2 size={15} /> Excluir</button>
       </header>
 
@@ -130,9 +132,7 @@ export default function WorkDetail({ workId }) {
         <div className="work-info-grid">
           <label className="field">
             <span className="field-label">Matéria</span>
-            <select value={work.classId} onChange={e => updWork(work.id, { classId: e.target.value })}>
-              {data.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <ClassSelect data={data} value={work.classId} onChange={e => updWork(work.id, { classId: e.target.value })} />
           </label>
           <label className="field">
             <span className="field-label">Tipo</span>

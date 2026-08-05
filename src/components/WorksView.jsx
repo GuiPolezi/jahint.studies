@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Briefcase, Plus, Users, Paperclip, CheckCircle2 } from 'lucide-react'
-import { useStore } from '../store/StoreProvider'
+import { useStore, classInfo, termLabel, ClassSelect, defaultClassId } from '../store/StoreProvider'
 import { Modal, Field, DueChip, EmptyState } from './ui'
 import { formatBR, todayISO } from '../lib/utils'
 
@@ -9,7 +9,7 @@ export const DELIVERY_OPTIONS = ['Microsoft Teams', 'Em aula (em mãos)', 'E-mai
 export function WorkFormModal({ onClose, onCreated }) {
   const { data, addWork } = useStore()
   const [title, setTitle] = useState('')
-  const [classId, setClassId] = useState(data.classes[0]?.id || '')
+  const [classId, setClassId] = useState(() => defaultClassId(data))
   const [type, setType] = useState('tarefa')
   const [dueDate, setDueDate] = useState(todayISO())
   const [delivery, setDelivery] = useState(DELIVERY_OPTIONS[0])
@@ -28,11 +28,8 @@ export function WorkFormModal({ onClose, onCreated }) {
         <Field label="Título *">
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex.: Trabalho final — sistema distribuído" autoFocus required />
         </Field>
-        <Field label="Matéria vinculada *">
-          <select value={classId} onChange={e => setClassId(e.target.value)} required>
-            <option value="" disabled>Selecione a matéria…</option>
-            {data.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+        <Field label="Matéria vinculada *" hint="A matéria define o ano e o semestre do trabalho.">
+          <ClassSelect data={data} value={classId} onChange={e => setClassId(e.target.value)} required />
         </Field>
         <Field label="Tipo">
           <div className="radio-row">
@@ -66,15 +63,28 @@ export function WorkFormModal({ onClose, onCreated }) {
 }
 
 export default function WorksView() {
-  const { data, nav } = useStore()
+  const { data, nav, route } = useStore()
   const [modal, setModal] = useState(false)
   const [fType, setFType] = useState('todos')
   const [fClass, setFClass] = useState('todas')
   const [fStatus, setFStatus] = useState('pendentes')
+  // Começa no ano pedido pela navegação (ex.: voltar do detalhe de um trabalho),
+  // senão no ano do semestre atual — "o ano em que estou"
+  const [fYear, setFYear] = useState(
+    () => route.yearId || data.semesters.find(s => s.id === data.activeSemesterId)?.yearId || 'todos'
+  )
 
   const cls = id => data.classes.find(c => c.id === id)
+  const yearOf = classId => classInfo(data, classId).year
+  const fYearSafe = data.years.some(y => y.id === fYear) ? fYear : 'todos'
+
+  const years = [...data.years].sort((a, b) => a.number - b.number)
+  const classOptions = fYearSafe === 'todos'
+    ? data.classes
+    : data.classes.filter(c => yearOf(c.id)?.id === fYearSafe)
 
   const works = data.works
+    .filter(w => (fYearSafe === 'todos' ? true : yearOf(w.classId)?.id === fYearSafe))
     .filter(w => (fType === 'todos' ? true : w.type === fType))
     .filter(w => (fClass === 'todas' ? true : w.classId === fClass))
     .filter(w => {
@@ -100,6 +110,20 @@ export default function WorksView() {
       </header>
 
       <div className="filter-bar">
+        {years.length > 0 && (
+          <select
+            value={fYearSafe}
+            onChange={e => { setFYear(e.target.value); setFClass('todas') }}
+            title="Filtrar pelo ano letivo"
+          >
+            <option value="todos">Todos os anos</option>
+            {years.map(y => (
+              <option key={y.id} value={y.id}>
+                {y.number}º Ano{y.calendarYear ? ` (${y.calendarYear})` : ''}
+              </option>
+            ))}
+          </select>
+        )}
         <select value={fStatus} onChange={e => setFStatus(e.target.value)}>
           <option value="pendentes">Pendentes</option>
           <option value="concluidos">Concluídos</option>
@@ -112,7 +136,7 @@ export default function WorksView() {
         </select>
         <select value={fClass} onChange={e => setFClass(e.target.value)}>
           <option value="todas">Todas as matérias</option>
-          {data.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {classOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
@@ -130,6 +154,7 @@ export default function WorksView() {
         <div className="works-grid">
           {works.map(w => {
             const c = cls(w.classId)
+            const { sem, year } = classInfo(data, w.classId)
             const done = (w.progress ?? 0) >= 100
             return (
               <div key={w.id} className="panel work-card" onClick={() => nav('work', { workId: w.id })}>
@@ -142,6 +167,7 @@ export default function WorksView() {
                 <h3>{w.title}</h3>
                 <div className="work-card-meta">
                   {c && <span className="class-chip" style={{ '--cls-color': c.color }}>{c.name}</span>}
+                  {year && <span className="term-chip">{termLabel(sem, year)}</span>}
                 </div>
                 <div className="work-card-info">
                   <span>📅 {formatBR(w.dueDate)}</span>
