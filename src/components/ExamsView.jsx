@@ -18,12 +18,12 @@ function ExamFormModal({ initial, onClose, onSaved }) {
   const [time, setTime] = useState(initial?.time || '')
   const [topics, setTopics] = useState(initial?.topics || '')
 
-  const save = e => {
+  const save = async e => {
     e.preventDefault()
     const finalLabel = label === 'Outro' ? (customLabel.trim() || 'Prova') : label
     const payload = { classId, label: finalLabel, date, time, topics }
-    if (initial) updExam(initial.id, payload)
-    else addExam(payload)
+    if (initial) await updExam(initial.id, payload)
+    else if (!(await addExam(payload))) return // erro já avisado pelo store
     onSaved?.(classId)
     onClose()
   }

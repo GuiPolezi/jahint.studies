@@ -6,8 +6,7 @@ import {
 import { useStore, classInfo, termLabel, ClassSelect } from '../store/StoreProvider'
 import { DueChip } from './ui'
 import RichEditor, { useAutosaveContent, SaveStatus } from './RichEditor'
-import { uid, formatBytes } from '../lib/utils'
-import { idbPut, idbGet } from '../lib/idb'
+import { formatBytes } from '../lib/utils'
 import { DELIVERY_OPTIONS } from './WorksView'
 
 function fileIcon(att) {
@@ -19,8 +18,8 @@ function fileIcon(att) {
   return <File size={18} />
 }
 
-function TabEditor({ workId, tab }) {
-  const { initial, status, onChange } = useAutosaveContent(`work:${workId}:${tab.id}`)
+function TabEditor({ tab }) {
+  const { initial, status, onChange } = useAutosaveContent('tab', tab.id)
   return (
     <div className="tab-editor">
       <div className="tab-editor-status"><SaveStatus status={status} /></div>
@@ -34,7 +33,8 @@ function TabEditor({ workId, tab }) {
 export default function WorkDetail({ workId }) {
   const {
     data, nav, updWork, delWork, addWorkTab, delWorkTab,
-    addAttachment, delAttachment,
+    addWorkMember, delWorkMember,
+    uploadAttachment, delAttachment, downloadAttachment,
   } = useStore()
   const [tabId, setTabId] = useState(null)
   const [memberName, setMemberName] = useState('')
@@ -65,7 +65,7 @@ export default function WorkDetail({ workId }) {
     e.preventDefault()
     const name = memberName.trim()
     if (!name) return
-    updWork(work.id, { members: [...work.members, name] })
+    addWorkMember(work.id, name)
     setMemberName('')
   }
 
@@ -74,35 +74,15 @@ export default function WorkDetail({ workId }) {
     e.target.value = ''
     if (!files.length) return
     setUploading(true)
-    try {
-      for (const f of files) {
-        const id = uid()
-        await idbPut('files', id, f)
-        addAttachment(work.id, { id, name: f.name, size: f.size, type: f.type })
-      }
-    } catch (err) {
-      console.error(err)
-      alert('Falha ao salvar um dos arquivos. O armazenamento do navegador pode estar cheio.')
-    }
+    for (const f of files) await uploadAttachment(work.id, f) // sobe para o servidor
     setUploading(false)
   }
 
-  const download = async att => {
-    const blob = await idbGet('files', att.id)
-    if (!blob) return alert('Arquivo não encontrado no armazenamento local.')
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = att.name
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
-  }
-
-  const addTab = () => {
+  const addTab = async () => {
     const title = window.prompt('Nome da nova aba de anotações:', 'Nova anotação')
     if (!title?.trim()) return
-    const t = addWorkTab(work.id, title.trim())
-    setTabId(t.id)
+    const t = await addWorkTab(work.id, title.trim())
+    if (t) setTabId(t.id)
   }
 
   return (
@@ -169,12 +149,12 @@ export default function WorkDetail({ workId }) {
         <div className="members-row">
           <span className="field-label">Integrantes do grupo ({work.members.length})</span>
           <div className="members-chips">
-            {work.members.map((m, i) => (
-              <span key={i} className="member-chip">
-                {m}
+            {work.members.map(m => (
+              <span key={m.id} className="member-chip">
+                {m.name}
                 <button
                   className="chip-x"
-                  onClick={() => updWork(work.id, { members: work.members.filter((_, j) => j !== i) })}
+                  onClick={() => delWorkMember(work.id, m.id)}
                 ><X size={12} /></button>
               </span>
             ))}
@@ -213,7 +193,7 @@ export default function WorkDetail({ workId }) {
           ))}
           <button className="work-tab add" onClick={addTab} title="Nova aba de anotações"><Plus size={14} /></button>
         </div>
-        {activeTab && <TabEditor key={activeTab.id} workId={work.id} tab={activeTab} />}
+        {activeTab && <TabEditor key={activeTab.id} tab={activeTab} />}
       </section>
 
       <section className="panel">
@@ -225,7 +205,7 @@ export default function WorkDetail({ workId }) {
           <input ref={fileInput} type="file" multiple hidden onChange={onFiles} />
         </div>
         {work.attachments.length === 0 ? (
-          <p className="panel-empty">Anexe PDFs de requisitos, códigos, ZIPs — qualquer arquivo. Tudo fica salvo localmente no navegador.</p>
+          <p className="panel-empty">Anexe PDFs de requisitos, códigos, ZIPs — qualquer arquivo. Tudo fica salvo na sua conta, no servidor.</p>
         ) : (
           <ul className="file-list">
             {work.attachments.map(att => (
@@ -235,7 +215,7 @@ export default function WorkDetail({ workId }) {
                   <strong>{att.name}</strong>
                   <small>{formatBytes(att.size)}</small>
                 </div>
-                <button className="icon-btn" title="Baixar" onClick={() => download(att)}><Download size={16} /></button>
+                <button className="icon-btn" title="Baixar" onClick={() => downloadAttachment(att)}><Download size={16} /></button>
                 <button
                   className="icon-btn danger"
                   title="Excluir arquivo"

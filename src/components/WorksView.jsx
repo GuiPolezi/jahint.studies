@@ -16,10 +16,11 @@ export function WorkFormModal({ onClose, onCreated }) {
   const [dueDate, setDueDate] = useState(todayISO())
   const [delivery, setDelivery] = useState(DELIVERY_OPTIONS[0])
 
-  const save = e => {
+  const save = async e => {
     e.preventDefault()
     if (!title.trim() || !classId) return
-    const w = addWork({ classId, title: title.trim(), type, dueDate, delivery })
+    const w = await addWork({ classId, title: title.trim(), type, dueDate, delivery })
+    if (!w) return // erro já avisado pelo store
     onCreated?.(w)
     onClose()
   }

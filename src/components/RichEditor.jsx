@@ -22,7 +22,7 @@ import {
   Undo2, Redo2, Highlighter, Palette, Eraser, Plus, Trash2,
 } from 'lucide-react'
 import { readImageResized } from '../lib/utils'
-import { idbGet, idbPut } from '../lib/idb'
+import { api } from '../lib/api'
 
 const TEXT_COLORS = [
   ['Padrão', ''], ['Cinza', '#6b7280'], ['Vermelho', '#dc2626'], ['Laranja', '#ea580c'],
@@ -33,8 +33,9 @@ const HIGHLIGHT_COLORS = [
   ['Rosa', '#fbcfe8'], ['Laranja', '#fed7aa'], ['Roxo', '#e9d5ff'],
 ]
 
-// Hook: carrega conteúdo do IndexedDB e salva automaticamente (debounce)
-export function useAutosaveContent(contentKey) {
+// Hook: carrega o conteúdo do servidor e salva automaticamente (debounce).
+// kind: 'note' (anotação de aula) ou 'tab' (aba de trabalho); id: o id dela.
+export function useAutosaveContent(kind, id) {
   const [initial, setInitial] = useState(undefined) // undefined = carregando
   const [status, setStatus] = useState('idle')
   const timer = useRef(null)
@@ -43,24 +44,28 @@ export function useAutosaveContent(contentKey) {
     let alive = true
     setInitial(undefined)
     setStatus('idle')
-    idbGet('contents', contentKey)
-      .then(v => { if (alive) setInitial(v ?? null) })
-      .catch(() => { if (alive) setInitial(null) })
-    return () => { alive = false }
-  }, [contentKey])
+    const load = kind === 'note'
+      ? api.getNote(id).then(r => r.note?.content ?? null)
+      : api.getTabContent(id).then(r => r.content ?? null)
+    load
+      .then(v => { if (alive) setInitial(v) })
+      .catch(() => { if (alive) { setInitial(null); setStatus('error') } })
+    return () => { alive = false; clearTimeout(timer.current) }
+  }, [kind, id])
 
   const onChange = useCallback(json => {
     setStatus('saving')
     clearTimeout(timer.current)
     timer.current = setTimeout(async () => {
       try {
-        await idbPut('contents', contentKey, json)
+        if (kind === 'note') await api.updNote(id, { content: json })
+        else await api.updTab(id, { content: json })
         setStatus('saved')
       } catch {
         setStatus('error')
       }
     }, 600)
-  }, [contentKey])
+  }, [kind, id])
 
   return { initial, status, onChange }
 }

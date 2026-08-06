@@ -8,7 +8,7 @@ import { formatBR, todayISO, DAYS } from '../lib/utils'
 // Painel do editor — remontado por anotação (key) para isolar carregamento/salvamento
 function NoteEditorPane({ note }) {
   const { updNote, delNote } = useStore()
-  const { initial, status, onChange } = useAutosaveContent(`note:${note.id}`)
+  const { initial, status, onChange } = useAutosaveContent('note', note.id)
 
   return (
     <div className="note-editor-pane">
@@ -75,9 +75,10 @@ export default function ClassView({ classId }) {
     setModal(true)
   }
 
-  const createNote = e => {
+  const createNote = async e => {
     e.preventDefault()
-    const n = addNote(classId, { title: title.trim() || `Aula ${notes.length + 1}`, date })
+    const n = await addNote(classId, { title: title.trim() || `Aula ${notes.length + 1}`, date })
+    if (!n) return // erro já avisado pelo store
     setSelId(n.id)
     setModal(false)
   }

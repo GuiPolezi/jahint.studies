@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { GraduationCap, Camera } from 'lucide-react'
-import { uid, readImageResized } from '../lib/utils'
+import { api, setToken } from '../lib/api'
 import { Field } from './ui'
 
-export default function AuthScreen({ users, onLogin, onRegister }) {
-  const [mode, setMode] = useState(users.length ? 'login' : 'register')
+export default function AuthScreen({ onAuthed }) {
+  const [mode, setMode] = useState('login')
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
   // login
   const [logEmail, setLogEmail] = useState('')
@@ -14,48 +15,57 @@ export default function AuthScreen({ users, onLogin, onRegister }) {
   // cadastro
   const [form, setForm] = useState({
     fullName: '', nickname: '', email: '', password: '',
-    age: '', institution: '', course: '', avatar: null,
+    age: '', institution: '', course: '',
   })
+  const [avatarFile, setAvatarFile] = useState(null)   // enviado após criar a conta
+  const [avatarPreview, setAvatarPreview] = useState(null)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const doLogin = e => {
+  const doLogin = async e => {
     e.preventDefault()
-    const u = users.find(
-      u => u.email.toLowerCase() === logEmail.trim().toLowerCase() && u.password === logPass
-    )
-    if (!u) return setError('E-mail ou senha incorretos.')
-    onLogin(u.id)
+    setBusy(true); setError('')
+    try {
+      const res = await api.login(logEmail.trim(), logPass)
+      await onAuthed(res)
+    } catch (err) {
+      setError(err.message)
+    }
+    setBusy(false)
   }
 
-  const doRegister = e => {
+  const doRegister = async e => {
     e.preventDefault()
     if (!form.fullName.trim()) return setError('Informe seu nome completo.')
     if (!/.+@.+\..+/.test(form.email.trim())) return setError('Informe um e-mail válido.')
     if (form.password.length < 4) return setError('A senha deve ter pelo menos 4 caracteres.')
-    if (users.some(u => u.email.toLowerCase() === form.email.trim().toLowerCase()))
-      return setError('Já existe uma conta com esse e-mail.')
-    const user = {
-      id: uid(),
-      fullName: form.fullName.trim(),
-      nickname: form.nickname.trim() || form.fullName.trim().split(' ')[0],
-      email: form.email.trim(),
-      password: form.password,
-      age: form.age ? Number(form.age) : null,
-      institution: form.institution.trim(),
-      course: form.course.trim(),
-      avatar: form.avatar,
+    setBusy(true); setError('')
+    try {
+      const res = await api.register({
+        fullName: form.fullName.trim(),
+        nickname: form.nickname.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        age: form.age ? Number(form.age) : null,
+        institution: form.institution.trim(),
+        course: form.course.trim(),
+      })
+      // Com a conta criada, sobe o avatar (falha no avatar não impede o cadastro)
+      if (avatarFile) {
+        setToken(res.token)
+        await api.updateAvatar(avatarFile).catch(() => {})
+      }
+      await onAuthed(res)
+    } catch (err) {
+      setError(err.message)
     }
-    onRegister(user)
+    setBusy(false)
   }
 
-  const pickAvatar = async e => {
+  const pickAvatar = e => {
     const f = e.target.files?.[0]
     if (!f) return
-    try {
-      set('avatar', await readImageResized(f, 256, 0.85))
-    } catch {
-      setError('Não foi possível carregar a imagem.')
-    }
+    setAvatarFile(f)
+    setAvatarPreview(URL.createObjectURL(f))
     e.target.value = ''
   }
 
@@ -94,17 +104,16 @@ export default function AuthScreen({ users, onLogin, onRegister }) {
             <Field label="Senha">
               <input type="password" value={logPass} onChange={e => setLogPass(e.target.value)} placeholder="••••••••" />
             </Field>
-            <button type="submit" className="btn-primary btn-block">Entrar</button>
-            {users.length === 0 && (
-              <p className="auth-hint">Nenhuma conta ainda — crie a primeira na aba "Criar conta".</p>
-            )}
+            <button type="submit" className="btn-primary btn-block" disabled={busy}>
+              {busy ? 'Entrando…' : 'Entrar'}
+            </button>
           </form>
         ) : (
           <form onSubmit={doRegister} className="auth-form">
             <div className="avatar-row">
               <label className="avatar-uploader" title="Foto de perfil">
-                {form.avatar
-                  ? <img src={form.avatar} alt="avatar" />
+                {avatarPreview
+                  ? <img src={avatarPreview} alt="avatar" />
                   : <Camera size={22} />}
                 <input type="file" accept="image/*" hidden onChange={pickAvatar} />
               </label>
@@ -134,7 +143,9 @@ export default function AuthScreen({ users, onLogin, onRegister }) {
                 <input value={form.course} onChange={e => set('course', e.target.value)} placeholder="Ex.: Ciência da Computação" />
               </Field>
             </div>
-            <button type="submit" className="btn-primary btn-block">Criar minha conta</button>
+            <button type="submit" className="btn-primary btn-block" disabled={busy}>
+              {busy ? 'Criando conta…' : 'Criar minha conta'}
+            </button>
           </form>
         )}
       </div>
