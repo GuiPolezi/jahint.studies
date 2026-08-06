@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { FileText, Plus, Pencil, Trash2, Clock, ChevronDown } from 'lucide-react'
-import { useStore, classInfo, termLabel, ClassSelect, defaultClassId } from '../store/StoreProvider'
+import {
+  useStore, classInfo, termLabel, ClassSelect, defaultClassId, semestersOfYear,
+} from '../store/StoreProvider'
 import { Modal, Field, DueChip, EmptyState } from './ui'
 import { formatBR, todayISO, daysUntil } from '../lib/utils'
 
@@ -66,18 +68,27 @@ export default function ExamsView() {
   const { data, delExam, route } = useStore()
   const [modal, setModal] = useState(null) // {} novo | { initial } edição
   const [showPast, setShowPast] = useState(false)
-  // Começa no ano pedido pela navegação (ex.: clique no dashboard),
-  // senão no ano do semestre atual — "o ano em que estou"
+  // Começa no ano/semestre pedido pela navegação (ex.: clique no dashboard),
+  // senão no semestre atual — "o semestre em que estou"
+  const routeSem = route.semesterId ? data.semesters.find(s => s.id === route.semesterId) : null
   const [fYear, setFYear] = useState(
-    () => route.yearId || data.semesters.find(s => s.id === data.activeSemesterId)?.yearId || 'todos'
+    () => routeSem?.yearId || route.yearId ||
+      data.semesters.find(s => s.id === data.activeSemesterId)?.yearId || 'todos'
+  )
+  const [fSem, setFSem] = useState(
+    () => route.semesterId || (route.yearId ? 'todos' : data.activeSemesterId) || 'todos'
   )
 
   const cls = id => data.classes.find(c => c.id === id)
   const fYearSafe = data.years.some(y => y.id === fYear) ? fYear : 'todos'
   const years = [...data.years].sort((a, b) => a.number - b.number)
+  // O semestre só faz sentido dentro de um ano: com "todos os anos", não filtra semestre
+  const semOptions = fYearSafe === 'todos' ? [] : semestersOfYear(data, fYearSafe)
+  const fSemSafe = semOptions.some(s => s.id === fSem) ? fSem : 'todos'
 
   const sorted = data.exams
     .filter(e => (fYearSafe === 'todos' ? true : classInfo(data, e.classId).year?.id === fYearSafe))
+    .filter(e => (fSemSafe === 'todos' ? true : cls(e.classId)?.semesterId === fSemSafe))
     .sort((a, b) => a.date.localeCompare(b.date))
   const future = sorted.filter(e => daysUntil(e.date) >= 0)
   const past = sorted.filter(e => daysUntil(e.date) < 0).reverse()
@@ -141,7 +152,11 @@ export default function ExamsView() {
       ) : (
         <>
           <div className="filter-bar">
-            <select value={fYearSafe} onChange={e => setFYear(e.target.value)} title="Filtrar pelo ano letivo">
+            <select
+              value={fYearSafe}
+              onChange={e => { setFYear(e.target.value); setFSem('todos') }}
+              title="Filtrar pelo ano letivo"
+            >
               <option value="todos">Todos os anos</option>
               {years.map(y => (
                 <option key={y.id} value={y.id}>
@@ -149,12 +164,22 @@ export default function ExamsView() {
                 </option>
               ))}
             </select>
+            {semOptions.length > 0 && (
+              <select value={fSemSafe} onChange={e => setFSem(e.target.value)} title="Filtrar pelo semestre">
+                <option value="todos">Todos os semestres</option>
+                {semOptions.map(s => (
+                  <option key={s.id} value={s.id}>{s.number}º Semestre</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="exams-list">
             {future.length === 0 && (
               <p className="panel-empty">
-                {sorted.length === 0 ? 'Nenhuma prova neste ano letivo.' : 'Nenhuma prova futura. 🎉'}
+                {sorted.length === 0
+                  ? (fSemSafe === 'todos' ? 'Nenhuma prova neste ano letivo.' : 'Nenhuma prova neste semestre.')
+                  : 'Nenhuma prova futura. 🎉'}
               </p>
             )}
             {future.map(e => <ExamCard key={e.id} exam={e} />)}
@@ -181,9 +206,15 @@ export default function ExamsView() {
           initial={modal.initial}
           onClose={() => setModal(null)}
           onSaved={classId => {
-            // A prova salva não pode sumir atrás do filtro: se for de outro ano, segue para ele
-            const y = classInfo(data, classId).year?.id
-            if (y && fYearSafe !== 'todos' && y !== fYearSafe) setFYear(y)
+            // A prova salva não pode sumir atrás do filtro:
+            // se for de outro ano/semestre, os filtros seguem para ela
+            const { sem, year } = classInfo(data, classId)
+            if (year?.id && fYearSafe !== 'todos' && year.id !== fYearSafe) {
+              setFYear(year.id)
+              setFSem(sem?.id || 'todos')
+            } else if (sem?.id && fSemSafe !== 'todos' && sem.id !== fSemSafe) {
+              setFSem(sem.id)
+            }
           }}
         />
       )}

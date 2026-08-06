@@ -16,17 +16,31 @@ export default function Dashboard() {
     return termLabel(sem, year)
   }
 
+  // Todo o dashboard segue o semestre atual — datas, contadores e aulas.
+  // Sem um semestre definido, mostra o histórico completo.
+  const activeSem = data.semesters.find(s => s.id === data.activeSemesterId)
+  const activeYear = activeSem ? data.years.find(y => y.id === activeSem.yearId) : null
+  const activeClasses = data.classes.filter(c => c.semesterId === data.activeSemesterId)
+  const activeClassIds = new Set(activeClasses.map(c => c.id))
+  const inSemester = classId => !activeSem || activeClassIds.has(classId)
+
+  const semesterExams = data.exams.filter(e => inSemester(e.classId))
+  const semesterWorks = data.works.filter(w => inSemester(w.classId))
+
   // Junta provas + trabalhos pendentes numa única linha do tempo
   const items = [
-    ...data.exams.map(e => ({
+    ...semesterExams.map(e => ({
       id: e.id, kind: 'prova', date: e.date,
       title: `${e.label} · ${className(e.classId)}`,
       color: classColor(e.classId),
       term: classTerm(e.classId),
-      // Passa o ano da prova para a tela abrir já filtrada nele
-      go: () => nav('exams', { yearId: classInfo(data, e.classId).year?.id }),
+      // Passa ano e semestre da prova para a tela abrir já filtrada neles
+      go: () => nav('exams', {
+        yearId: classInfo(data, e.classId).year?.id,
+        semesterId: classInfo(data, e.classId).sem?.id,
+      }),
     })),
-    ...data.works
+    ...semesterWorks
       .filter(w => (w.progress ?? 0) < 100 && w.dueDate)
       .map(w => ({
         id: w.id, kind: w.type === 'trabalho' ? 'trabalho' : 'tarefa', date: w.dueDate,
@@ -47,9 +61,8 @@ export default function Dashboard() {
   const next = upcoming[0]
   const nextDays = next ? daysUntil(next.date) : null
 
-  const pendingWorks = data.works.filter(w => (w.progress ?? 0) < 100).length
-  const futureExams = data.exams.filter(e => daysUntil(e.date) >= 0).length
-  const activeClasses = data.classes.filter(c => c.semesterId === data.activeSemesterId)
+  const pendingWorks = semesterWorks.filter(w => (w.progress ?? 0) < 100).length
+  const futureExams = semesterExams.filter(e => daysUntil(e.date) >= 0).length
 
   // Aulas de hoje (do semestre ativo)
   const todayDow = new Date().getDay()
@@ -69,6 +82,9 @@ export default function Dashboard() {
           <h1>Olá, {user.nickname}! 👋</h1>
           <p className="view-sub">
             {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {activeSem
+              ? <> · <span className="term-chip">{termLabel(activeSem, activeYear)}</span></>
+              : null}
           </p>
         </div>
       </header>
@@ -120,14 +136,22 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="big-card" onClick={() => nav('works')} role="button">
+            <div
+              className="big-card"
+              onClick={() => nav('works', { yearId: activeYear?.id, semesterId: activeSem?.id })}
+              role="button"
+            >
               <div className="big-icon"><Briefcase size={20} /></div>
               <div className="big-label">Trabalhos pendentes</div>
               <div className="big-value">{pendingWorks}</div>
               <div className="big-detail">{overdue.length > 0 ? `${overdue.length} atrasado(s)` : 'nenhum atrasado'}</div>
             </div>
 
-            <div className="big-card" onClick={() => nav('exams')} role="button">
+            <div
+              className="big-card"
+              onClick={() => nav('exams', { yearId: activeYear?.id, semesterId: activeSem?.id })}
+              role="button"
+            >
               <div className="big-icon"><FileText size={20} /></div>
               <div className="big-label">Provas agendadas</div>
               <div className="big-value">{futureExams}</div>
@@ -146,9 +170,16 @@ export default function Dashboard() {
             <section className="panel">
               <div className="panel-head">
                 <h2>📅 Próximas datas</h2>
+                <small className="panel-sub">
+                  {activeSem ? termLabel(activeSem, activeYear) : 'Todos os semestres'}
+                </small>
               </div>
               {upcoming.length === 0 && overdue.length === 0 ? (
-                <p className="panel-empty">Nenhuma data futura registrada. Cadastre provas e trabalhos para acompanhar aqui.</p>
+                <p className="panel-empty">
+                  {activeSem
+                    ? 'Nenhuma data registrada neste semestre. Cadastre provas e trabalhos para acompanhar aqui.'
+                    : 'Nenhuma data futura registrada. Cadastre provas e trabalhos para acompanhar aqui.'}
+                </p>
               ) : (
                 <ul className="date-list">
                   {[...overdue, ...upcoming].slice(0, 10).map(item => (

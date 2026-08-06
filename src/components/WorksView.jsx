@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Briefcase, Plus, Users, Paperclip, CheckCircle2 } from 'lucide-react'
-import { useStore, classInfo, termLabel, ClassSelect, defaultClassId } from '../store/StoreProvider'
+import {
+  useStore, classInfo, termLabel, ClassSelect, defaultClassId, semestersOfYear,
+} from '../store/StoreProvider'
 import { Modal, Field, DueChip, EmptyState } from './ui'
 import { formatBR, todayISO } from '../lib/utils'
 
@@ -68,10 +70,15 @@ export default function WorksView() {
   const [fType, setFType] = useState('todos')
   const [fClass, setFClass] = useState('todas')
   const [fStatus, setFStatus] = useState('pendentes')
-  // Começa no ano pedido pela navegação (ex.: voltar do detalhe de um trabalho),
-  // senão no ano do semestre atual — "o ano em que estou"
+  // Começa no ano/semestre pedido pela navegação (ex.: voltar do detalhe de um trabalho),
+  // senão no semestre atual — "o semestre em que estou"
+  const routeSem = route.semesterId ? data.semesters.find(s => s.id === route.semesterId) : null
   const [fYear, setFYear] = useState(
-    () => route.yearId || data.semesters.find(s => s.id === data.activeSemesterId)?.yearId || 'todos'
+    () => routeSem?.yearId || route.yearId ||
+      data.semesters.find(s => s.id === data.activeSemesterId)?.yearId || 'todos'
+  )
+  const [fSem, setFSem] = useState(
+    () => route.semesterId || (route.yearId ? 'todos' : data.activeSemesterId) || 'todos'
   )
 
   const cls = id => data.classes.find(c => c.id === id)
@@ -79,14 +86,21 @@ export default function WorksView() {
   const fYearSafe = data.years.some(y => y.id === fYear) ? fYear : 'todos'
 
   const years = [...data.years].sort((a, b) => a.number - b.number)
-  const classOptions = fYearSafe === 'todos'
-    ? data.classes
-    : data.classes.filter(c => yearOf(c.id)?.id === fYearSafe)
+  // O semestre só faz sentido dentro de um ano: com "todos os anos", não filtra semestre
+  const semOptions = fYearSafe === 'todos' ? [] : semestersOfYear(data, fYearSafe)
+  const fSemSafe = semOptions.some(s => s.id === fSem) ? fSem : 'todos'
+
+  const classOptions = data.classes
+    .filter(c => (fYearSafe === 'todos' ? true : yearOf(c.id)?.id === fYearSafe))
+    .filter(c => (fSemSafe === 'todos' ? true : c.semesterId === fSemSafe))
+  // Matéria de fora do ano/semestre escolhido não pode continuar filtrando
+  const fClassSafe = classOptions.some(c => c.id === fClass) ? fClass : 'todas'
 
   const works = data.works
     .filter(w => (fYearSafe === 'todos' ? true : yearOf(w.classId)?.id === fYearSafe))
+    .filter(w => (fSemSafe === 'todos' ? true : cls(w.classId)?.semesterId === fSemSafe))
     .filter(w => (fType === 'todos' ? true : w.type === fType))
-    .filter(w => (fClass === 'todas' ? true : w.classId === fClass))
+    .filter(w => (fClassSafe === 'todas' ? true : w.classId === fClassSafe))
     .filter(w => {
       const done = (w.progress ?? 0) >= 100
       return fStatus === 'todos' ? true : fStatus === 'pendentes' ? !done : done
@@ -113,7 +127,7 @@ export default function WorksView() {
         {years.length > 0 && (
           <select
             value={fYearSafe}
-            onChange={e => { setFYear(e.target.value); setFClass('todas') }}
+            onChange={e => { setFYear(e.target.value); setFSem('todos'); setFClass('todas') }}
             title="Filtrar pelo ano letivo"
           >
             <option value="todos">Todos os anos</option>
@@ -121,6 +135,18 @@ export default function WorksView() {
               <option key={y.id} value={y.id}>
                 {y.number}º Ano{y.calendarYear ? ` (${y.calendarYear})` : ''}
               </option>
+            ))}
+          </select>
+        )}
+        {semOptions.length > 0 && (
+          <select
+            value={fSemSafe}
+            onChange={e => { setFSem(e.target.value); setFClass('todas') }}
+            title="Filtrar pelo semestre"
+          >
+            <option value="todos">Todos os semestres</option>
+            {semOptions.map(s => (
+              <option key={s.id} value={s.id}>{s.number}º Semestre</option>
             ))}
           </select>
         )}
@@ -134,7 +160,7 @@ export default function WorksView() {
           <option value="tarefa">Só tarefas</option>
           <option value="trabalho">Só trabalhos</option>
         </select>
-        <select value={fClass} onChange={e => setFClass(e.target.value)}>
+        <select value={fClassSafe} onChange={e => setFClass(e.target.value)}>
           <option value="todas">Todas as matérias</option>
           {classOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>

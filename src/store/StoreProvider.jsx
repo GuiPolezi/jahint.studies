@@ -42,6 +42,17 @@ export function classGroups(data) {
   return groups
 }
 
+// Semestres de um ano letivo, em ordem
+export function semestersOfYear(data, yearId) {
+  return data.semesters.filter(s => s.yearId === yearId).sort((a, b) => a.number - b.number)
+}
+
+// Ids das aulas de um semestre — base para filtrar trabalhos e provas por semestre,
+// já que o vínculo com o semestre vem sempre da matéria
+export function semesterClassIds(data, semesterId) {
+  return new Set(data.classes.filter(c => c.semesterId === semesterId).map(c => c.id))
+}
+
 // Select de matéria com optgroups "1º Ano · 1º Semestre (2024)"
 export function ClassSelect({ data, value, onChange, required }) {
   const groups = classGroups(data)

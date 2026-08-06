@@ -109,7 +109,7 @@ export default function WorkDetail({ workId }) {
     <div className="view view-wide">
       <header className="view-head">
         <div>
-          <button className="btn-back" onClick={() => nav('works', { yearId: year?.id })}><ChevronLeft size={16} /> Trabalhos</button>
+          <button className="btn-back" onClick={() => nav('works', { yearId: year?.id, semesterId: sem?.id })}><ChevronLeft size={16} /> Trabalhos</button>
           <input
             className="note-title-input work-title"
             value={work.title}
@@ -124,7 +124,7 @@ export default function WorkDetail({ workId }) {
         </div>
         <button
           className="btn-danger"
-          onClick={() => { if (confirm(`Excluir "${work.title}" e todas as suas anotações e arquivos?`)) { delWork(work.id); nav('works', { yearId: year?.id }) } }}
+          onClick={() => { if (confirm(`Excluir "${work.title}" e todas as suas anotações e arquivos?`)) { delWork(work.id); nav('works', { yearId: year?.id, semesterId: sem?.id }) } }}
         ><Trash2 size={15} /> Excluir</button>
       </header>
 
