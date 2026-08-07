@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  LayoutDashboard, GraduationCap, Briefcase, FileText, User, LogOut,
+  LayoutDashboard, GraduationCap, Briefcase, FileText, User, LogOut, Menu, X,
 } from 'lucide-react'
 import { useStore } from '../store/StoreProvider'
 import Dashboard from './Dashboard'
@@ -37,10 +37,27 @@ function CurrentView() {
 export default function Shell() {
   const { route, nav, user, onLogout } = useStore()
   const contentRef = useRef(null)
+  // Gaveta de navegação — usada apenas nas larguras mobile (ver styles.mobile.css)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0 })
+    setMenuOpen(false) // navegar sempre fecha a gaveta
   }, [route])
+
+  // Esc fecha a gaveta (teclado externo / tablet com teclado)
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = e => { if (e.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
+  const currentNav = NAV.find(item => item.match.includes(route.view)) || NAV[0]
+
+  const avatar = user.avatar
+    ? <img src={user.avatar} alt="" className="user-avatar" />
+    : <div className="user-avatar user-avatar-fallback">{(user.nickname || '?')[0].toUpperCase()}</div>
 
   return (
     <div className="app">
@@ -49,10 +66,37 @@ export default function Shell() {
         <div className="orb orb-4" /><div className="orb orb-5" />
       </div>
 
-      <aside className="sidebar">
-        <div className="side-logo" onClick={() => nav('dashboard')}>
-          <div className="logo-badge"><GraduationCap size={22} /></div>
-          <div className="side-logo-text">Jahint<span>.Studies</span></div>
+      {/* Barra superior exclusiva do mobile: hambúrguer + tela atual + atalho do perfil */}
+      <header className="mobile-topbar">
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Abrir menu de navegação"
+          aria-expanded={menuOpen}
+        >
+          <Menu size={21} />
+        </button>
+        <div className="mobile-topbar-text">
+          <span className="mobile-topbar-app">Jahint<span>.Studies</span></span>
+          <span className="mobile-topbar-view">{currentNav.label}</span>
+        </div>
+        <button className="mobile-user-btn" onClick={() => nav('profile')} aria-label="Abrir meu perfil">
+          {avatar}
+        </button>
+      </header>
+
+      {/* Fundo escurecido: fecha a gaveta ao tocar fora */}
+      {menuOpen && (
+        <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+      )}
+
+      <aside className={'sidebar' + (menuOpen ? ' open' : '')}>
+        <div className="side-logo">
+          <div className="logo-badge" onClick={() => nav('dashboard')}><GraduationCap size={22} /></div>
+          <div className="side-logo-text" onClick={() => nav('dashboard')}>Jahint<span>.Studies</span></div>
+          <button className="drawer-close" onClick={() => setMenuOpen(false)} aria-label="Fechar menu">
+            <X size={18} />
+          </button>
         </div>
 
         <nav className="side-nav">
@@ -74,9 +118,7 @@ export default function Shell() {
 
         <div className="side-user">
           <button className="user-chip" onClick={() => nav('profile')} title="Ver perfil">
-            {user.avatar
-              ? <img src={user.avatar} alt="" className="user-avatar" />
-              : <div className="user-avatar user-avatar-fallback">{(user.nickname || '?')[0].toUpperCase()}</div>}
+            {avatar}
             <div className="user-chip-text">
               <strong>{user.nickname}</strong>
               <small>{user.course || user.institution || user.email}</small>

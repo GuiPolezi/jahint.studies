@@ -710,12 +710,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(80, 130, 180, 0.55); border: 2px solid transparent; background-clip: content-box; }
 
-/* ---------- responsivo ---------- */
-@media (max-width: 760px) {
-  .app { flex-direction: column; padding: 10px; }
-  .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 10px; }
-  .side-logo { padding: 0 8px; }
-  .side-logo-text, .nav-item span, .side-user { display: none; }
-  .side-nav { flex-direction: row; justify-content: center; }
-  .form-grid { grid-template-columns: 1fr; }
-}
+/* ---------- responsivo ----------
+   Toda a camada mobile vive em styles.mobile.css, importado depois
+   deste arquivo em main.jsx. O bloco antigo que existia aqui foi
+   substituído por ela (a sidebar horizontal escondia o acesso a
+   Perfil e Sair no celular). */
