@@ -14,7 +14,7 @@
      3. Modo mobile (≤ 900px): casca do app, topbar e drawer
      4. Telas: dashboard, estudos, grade, aulas, trabalhos, provas
      5. Editor de texto rico
-     6. Modais como bottom sheet
+     6. Modais centralizados
      7. Autenticação e perfil
      8. Telefones estreitos (≤ 560px) e mínimos (≤ 380px)
      9. Paisagem, performance e movimento reduzido
@@ -49,12 +49,35 @@
   .work-card:hover,
   .class-card:hover,
   .big-card[role='button']:hover { transform: none; }
+
+  /* Sem o flash cinza do iOS e sem o atraso de 300ms do duplo-toque */
+  a, button, .nav-item, .work-card, .class-card, .sem-row,
+  .big-card, .note-item, .date-list li, .today-list li, .work-tab, .radio-pill {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Sem hover, o toque precisa de outra confirmação visual de que
+     "pegou" — um leve afundar no momento do contato. */
+  .work-card:active, .class-card:active, .sem-row:active,
+  .note-item:active, .date-list li:active, .today-list li:active,
+  .big-card[role='button']:active {
+    transform: scale(0.985);
+    filter: brightness(0.97);
+  }
+  .btn-primary:active, .btn-ghost:active, .btn-danger:active,
+  .work-tab:active, .radio-pill:active { transform: scale(0.97); }
+  .nav-item:active { background: rgba(255, 255, 255, 0.7); }
+  .icon-btn:active { background: rgba(255, 255, 255, 0.8); }
 }
 
 /* ============================================================
    3. MODO MOBILE — casca do app, topbar e menu-hambúrguer
    ============================================================ */
 @media (max-width: 900px) {
+  /* Impede o iOS de inflar o corpo do texto ao girar a tela */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
   /* 100dvh acompanha a barra de endereço do navegador móvel;
      com 100vh o rodapé do app fica escondido atrás dela. */
   .app {
@@ -217,6 +240,11 @@
   .radio-pill { min-height: 42px; }
   .note-item { min-height: 46px; justify-content: center; }
   .sem-row { min-height: 52px; }
+  /* Campos com altura uniforme: date/time nativos do iOS e do Android
+     renderizam com alturas diferentes dos campos de texto comuns. */
+  .field input, .field select, .filter-bar select,
+  .note-date-input, .member-add input,
+  .slot-row select, .slot-row input { min-height: 44px; }
 
   /* ---------- contenção de largura ----------
      Item de grid/flex tem `min-width: auto`: ele nunca encolhe abaixo do
@@ -274,7 +302,17 @@
   .alert-banner { padding: 12px 14px; font-size: 13px; border-radius: 16px; gap: 10px; }
 
   .date-list li, .today-list li { padding: 11px 8px; gap: 9px; }
-  .date-text strong { white-space: normal; line-height: 1.3; }
+  /* Duas linhas no máximo: títulos longos empurravam a lista para
+     três ou quatro linhas por item e a tela virava uma parede de texto. */
+  .date-text strong {
+    white-space: normal;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .date-text small { line-height: 1.35; }
   .date-arrow { display: none; } /* a linha inteira já é clicável */
 
   /* ---------- meus estudos ---------- */
@@ -296,7 +334,7 @@
   /* ---------- aula: anotações ---------- */
   /* A lista fica acima do editor; sem limite ela empurrava o editor
      para fora da tela em turmas com muitas anotações. */
-  .notes-list ul { max-height: 34vh; }
+  .notes-list ul { max-height: 34dvh; }
   .note-editor-panel { padding: 12px 12px; }
   .note-editor-head { gap: 7px; }
   .note-title-input { min-width: 0; flex: 1 1 100%; font-size: 17px; }
@@ -360,8 +398,8 @@
   .swatch-grid { gap: 8px; }
   .swatch { width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
 
-  .editor-scroll { min-height: 44vh; max-height: none; }
-  .ProseMirror { font-size: 15px; min-height: 40vh; }
+  .editor-scroll { min-height: 44dvh; max-height: none; }
+  .ProseMirror { font-size: 15px; min-height: 40dvh; }
   .ProseMirror h1 { font-size: 22px; }
   .ProseMirror h2 { font-size: 18.5px; }
   .ProseMirror h3 { font-size: 16px; }
@@ -370,45 +408,42 @@
 }
 
 /* ============================================================
-   6. MODAIS — bottom sheet
+   6. MODAIS — diálogo centralizado
    ============================================================ */
 @media (max-width: 900px) {
-  /* Ancorado ao rodapé: fica ao alcance do polegar e não "pula"
-     quando o teclado virtual abre. */
-  .modal-overlay { place-items: end stretch; }
+  /* Centralizado na tela, não ancorado ao rodapé: é onde o olho procura
+     uma caixa de diálogo. O padding do overlay dá a margem lateral.
+     max-height garante que ele nunca ultrapassa a tela — a rolagem
+     acontece dentro do próprio modal, então centralizar nunca corta. */
+  .modal-overlay { place-items: center; padding: 14px; }
   .modal {
     /* !important: Modal() aplica width/maxWidth inline no JSX */
     width: 100% !important;
     max-width: 100% !important;
-    max-height: 92dvh;
-    border-radius: 26px 26px 0 0;
-    padding: 18px 16px calc(env(safe-area-inset-bottom, 0px) + 18px);
-    animation: sheetUp 0.26s cubic-bezier(0.32, 0.9, 0.35, 1);
+    max-height: 86dvh;
+    border-radius: 22px;
+    padding: 18px 16px;
     overscroll-behavior: contain;
-  }
-  /* Alça visual de "arraste", só decorativa */
-  .modal::before {
-    content: '';
-    display: block;
-    width: 40px;
-    height: 4px;
-    margin: -6px auto 12px;
-    border-radius: 999px;
-    background: rgba(120, 160, 200, 0.4);
   }
   .modal-head { margin-bottom: 14px; }
   .modal-head h3 { font-size: 17px; }
   .form-grid { grid-template-columns: 1fr; }
-  /* Botões grandes e lado a lado, fáceis de acertar */
-  .modal-actions { gap: 8px; }
+  /* Botões grandes, lado a lado e sempre visíveis: em formulários longos
+     (uma aula com vários horários) "Salvar" saía da área rolável. */
+  .modal-actions {
+    position: sticky;
+    bottom: -18px;
+    z-index: 2;
+    gap: 8px;
+    margin: 6px -16px -18px;
+    padding: 12px 16px 18px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, var(--glass-strong) 30%);
+    border-radius: 0 0 22px 22px;
+  }
   .modal-actions button { flex: 1; justify-content: center; }
   .slot-row { flex-wrap: wrap; gap: 7px; }
   .slot-row select { flex: 1 1 100%; }
   .slot-row input { flex: 1; }
-
-  @keyframes sheetUp {
-    from { opacity: 0; transform: translateY(22px); }
-  }
 }
 
 /* ============================================================
@@ -423,15 +458,19 @@
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 16px 14px calc(env(safe-area-inset-bottom, 0px) + 24px);
-    place-items: start center;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 14px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    /* stretch (padrão) + margin auto no cartão: centralização "segura".
+       Com place-items:center o topo de um cartão mais alto que a tela
+       fica inalcançável; com margem automática ela vira 0 quando não há
+       espaço sobrando, e aí o cartão simplesmente rola do topo. */
+    place-items: stretch;
   }
   .auth-card {
     width: 100%;
     max-width: 100%;
     padding: 24px 18px;
     border-radius: 24px;
-    margin-top: max(env(safe-area-inset-top, 0px), 8px);
+    margin: auto 0; /* centraliza na vertical sem cortar quando é alto */
   }
   .auth-logo h1 { font-size: 24px; }
   .auth-logo .logo-badge { width: 52px; height: 52px; border-radius: 17px; }
@@ -452,7 +491,9 @@
   .head-actions { width: 100%; }
   .head-actions > button { flex: 1; justify-content: center; }
 
-  .filter-bar select { flex: 1 1 100%; }
+  /* Dois filtros por linha: em Trabalhos são quatro selects, e um por
+     linha empurrava a lista para bem longe do topo. */
+  .filter-bar select { flex: 1 1 calc(50% - 4px); min-width: 0; }
   .empty-actions { flex-direction: column; }
   .empty-actions > button { width: 100%; justify-content: center; }
 
