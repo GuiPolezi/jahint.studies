@@ -273,15 +273,28 @@
   .field select, .field input, .field textarea { width: 100%; max-width: 100%; }
   .filter-bar select { width: auto; }
 
-  /* Data e hora são os piores: o iOS lhes dá uma largura intrínseca grande
-     (calendário + relógio embutidos) e eles estouravam modais e painéis. */
+  /* Data e hora são os piores. No iOS o texto do campo mora num
+     pseudo-elemento interno (::-webkit-date-and-time-value) com largura
+     própria e alinhamento centralizado: é ELE que empurra o campo para fora
+     do cartão — width:100% no <input> não alcança o conteúdo interno.
+     O texto centralizado nesses campos é justamente o sintoma disso. */
   input[type='date'], input[type='time'], input[type='number'] {
     width: 100%;
     max-width: 100%;
     min-width: 0;
   }
+  input[type='date']::-webkit-date-and-time-value,
+  input[type='time']::-webkit-date-and-time-value {
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+  /* O seletor nativo não pode ditar a largura mínima do campo */
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator { flex-shrink: 0; }
+
   .note-date-input { flex: 1 1 140px; min-width: 0; }
-  .slot-row input[type='time'] { flex: 1 1 0; }
+  .slot-row input[type='time'] { flex: 1 1 0; min-width: 0; }
 
   /* Painéis mais enxutos para ganhar largura útil */
   .panel { padding: 15px 14px; border-radius: 18px; }
@@ -449,41 +462,49 @@
      max-height garante que ele nunca ultrapassa a tela — a rolagem
      acontece dentro do próprio modal, então centralizar nunca corta. */
   .modal-overlay { place-items: center; padding: 18px 14px; }
+
+  /* Cartão em coluna: cabeçalho fixo em cima e SÓ o corpo rola. Antes o
+     cartão inteiro rolava, e o rodapé grudado nele criava aquela faixa
+     branca que parecia um segundo popup por cima do primeiro. */
   .modal {
     /* !important: Modal() aplica width/maxWidth inline no JSX */
     width: 100% !important;
     max-width: 100% !important;
-    /* 78dvh deixa ~11% de tela livre em cima e embaixo. Com 86dvh o topo do
-       modal encostava na barra de navegação e parecia grudado nela. */
-    max-height: 78dvh;
+    display: flex;
+    flex-direction: column;
+    /* svh = altura com as barras do navegador visíveis. Com dvh a altura
+       mudava durante a rolagem e o cartão "respirava" junto.
+       Reserva fixa em px (e não uma porcentagem) porque o que precisa caber
+       em cima é a barra de navegação, que tem altura fixa: 2 × (barra ≈ 61px
+       + 20px de respiro). Com porcentagem, o cartão encostava na barra. */
+    max-height: 68vh;
+    max-height: calc(100svh - 164px - env(safe-area-inset-top, 0px));
     border-radius: 22px;
-    padding: 18px 16px;
-    overscroll-behavior: contain;
-    /* overflow-y:auto faz o eixo X virar `auto` também — era isso que
-       permitia arrastar o modal para os lados quando um campo era largo. */
-    overflow-x: hidden;
+    padding: 16px 16px 18px;
+    overflow: hidden; /* quem rola é .modal-body, não o cartão */
   }
-  .modal-head { margin-bottom: 14px; }
+  .modal-head { flex-shrink: 0; margin-bottom: 12px; }
+  .modal-body {
+    flex: 1 1 auto;
+    min-height: 0; /* deixa o corpo encolher para caber no cartão */
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* margens negativas: a rolagem vai de borda a borda, mas o conteúdo
+       mantém o respiro lateral */
+    margin: 0 -16px;
+    padding: 0 16px;
+    /* sem barra de rolagem à vista dentro do popup */
+    scrollbar-width: none;
+  }
+  .modal-body::-webkit-scrollbar { display: none; }
   .modal-head h3 { font-size: 17px; }
   .form-grid { grid-template-columns: 1fr; }
-  /* Botões grandes, lado a lado e sempre visíveis: em formulários longos
-     (uma aula com vários horários) "Salvar" saía da área rolável. */
-  .modal-actions {
-    position: sticky;
-    bottom: -18px;
-    z-index: 2;
-    gap: 8px;
-    margin: 10px -16px -18px;
-    padding: 13px 16px 18px;
-    /* Barra sólida com borda em vez de degradê: o conteúdo que passa por
-       baixo ao rolar fica fosco atrás dela, e a divisão fica clara. */
-    background: rgba(255, 255, 255, 0.82);
-    backdrop-filter: blur(14px) saturate(1.5);
-    -webkit-backdrop-filter: blur(14px) saturate(1.5);
-    border-top: 1px solid rgba(255, 255, 255, 0.75);
-    box-shadow: 0 -6px 16px rgba(31, 87, 148, 0.07);
-    border-radius: 0 0 22px 22px;
-  }
+  /* Botões grandes e lado a lado, no fim do formulário. Já tentei prendê-los
+     no rodapé do cartão, mas a faixa resultante parecia um popup sobre o
+     outro — rolar até o fim do formulário é mais previsível. */
+  .modal-actions { gap: 8px; margin-top: 14px; }
   .modal-actions button { flex: 1; justify-content: center; }
   .slot-row { flex-wrap: wrap; gap: 7px; }
   .slot-row select { flex: 1 1 100%; }
@@ -570,7 +591,7 @@
 @media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
   .notes-list ul { max-height: 40vh; }
   .editor-scroll { min-height: 38vh; }
-  .modal { max-height: 96dvh; }
+  .modal { max-height: calc(100svh - 96px); }
   .empty-state { padding: 24px 18px; }
 }
 
