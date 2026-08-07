@@ -273,6 +273,16 @@
   .field select, .field input, .field textarea { width: 100%; max-width: 100%; }
   .filter-bar select { width: auto; }
 
+  /* Data e hora são os piores: o iOS lhes dá uma largura intrínseca grande
+     (calendário + relógio embutidos) e eles estouravam modais e painéis. */
+  input[type='date'], input[type='time'], input[type='number'] {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .note-date-input { flex: 1 1 140px; min-width: 0; }
+  .slot-row input[type='time'] { flex: 1 1 0; }
+
   /* Painéis mais enxutos para ganhar largura útil */
   .panel { padding: 15px 14px; border-radius: 18px; }
   .empty-state { padding: 40px 18px; border-radius: 18px; }
@@ -288,7 +298,10 @@
   /* 2 colunas mantêm os números legíveis; o card em destaque
      ocupa a linha inteira por ser o mais importante. */
   .big-numbers { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-  .highlight-card { grid-column: 1 / -1; }
+  /* O card em destaque e o último ("Aulas no semestre", que fica sozinho na
+     terceira linha) ocupam a largura toda — meio card solto ficava torto. */
+  .highlight-card,
+  .big-numbers > .big-card:last-child { grid-column: 1 / -1; }
   .big-card { padding: 14px; border-radius: 18px; }
   .big-icon { width: 32px; height: 32px; border-radius: 10px; margin-bottom: 8px; }
   .big-value { font-size: 27px; }
@@ -329,7 +342,12 @@
   .day-col-head { padding: 10px 13px; }
   .day-col-body { min-height: 0; padding: 9px; }
   .day-empty { padding: 10px 0; }
-  .class-card-actions { opacity: 1; } /* toque não tem hover */
+  /* Os botões de editar/excluir são sobrepostos ao card. Como no toque eles
+     ficam sempre visíveis, o nome da matéria precisa de espaço reservado —
+     senão um título longo passa por baixo dos ícones. */
+  .class-card-actions { opacity: 1; gap: 0; }
+  .class-card-actions .icon-btn { width: 34px; height: 34px; }
+  .class-card-name { padding-right: 72px; min-height: 30px; }
 
   /* ---------- aula: anotações ---------- */
   /* A lista fica acima do editor; sem limite ela empurrava o editor
@@ -345,13 +363,25 @@
   .filter-bar { gap: 8px; }
   .filter-bar select { min-width: 0; flex: 1 1 calc(50% - 4px); }
   .work-info-grid { grid-template-columns: 1fr; }
-  .work-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  /* O container recorta em overflow-x, e isso cortava o brilho do balão
+     ativo num traço reto embaixo dele. O padding dá espaço para a sombra;
+     as margens negativas devolvem o alinhamento original. */
+  .work-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 7px 4px 11px;
+    margin: -7px -4px 3px;
+  }
   .work-tabs::-webkit-scrollbar { display: none; }
   .work-tab { flex-shrink: 0; }
+  .work-tab.active { box-shadow: 0 3px 9px rgba(10, 132, 255, 0.32); }
   .member-add { width: 100%; }
   .member-add input { width: 100%; flex: 1; }
   .file-list li { gap: 10px; padding: 9px 10px; }
   .file-icon { width: 34px; height: 34px; }
+  .danger-zone { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px; }
+  .danger-zone .btn-danger { width: 100%; justify-content: center; }
 
   /* ---------- provas ---------- */
   .exam-card { gap: 12px; padding: 12px 12px; align-items: flex-start; }
@@ -399,7 +429,10 @@
   .swatch { width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
 
   .editor-scroll { min-height: 44dvh; max-height: none; }
-  .ProseMirror { font-size: 15px; min-height: 40dvh; }
+  /* 16px é o limiar do iOS: abaixo disso o Safari dá zoom ao focar a área de
+     escrita, e depois é preciso reduzir o zoom na mão para o layout voltar. */
+  .ProseMirror { font-size: 16px; min-height: 40dvh; }
+  .editor-loading { min-height: 40dvh; padding: 24px; }
   .ProseMirror h1 { font-size: 22px; }
   .ProseMirror h2 { font-size: 18.5px; }
   .ProseMirror h3 { font-size: 16px; }
@@ -415,15 +448,20 @@
      uma caixa de diálogo. O padding do overlay dá a margem lateral.
      max-height garante que ele nunca ultrapassa a tela — a rolagem
      acontece dentro do próprio modal, então centralizar nunca corta. */
-  .modal-overlay { place-items: center; padding: 14px; }
+  .modal-overlay { place-items: center; padding: 18px 14px; }
   .modal {
     /* !important: Modal() aplica width/maxWidth inline no JSX */
     width: 100% !important;
     max-width: 100% !important;
-    max-height: 86dvh;
+    /* 78dvh deixa ~11% de tela livre em cima e embaixo. Com 86dvh o topo do
+       modal encostava na barra de navegação e parecia grudado nela. */
+    max-height: 78dvh;
     border-radius: 22px;
     padding: 18px 16px;
     overscroll-behavior: contain;
+    /* overflow-y:auto faz o eixo X virar `auto` também — era isso que
+       permitia arrastar o modal para os lados quando um campo era largo. */
+    overflow-x: hidden;
   }
   .modal-head { margin-bottom: 14px; }
   .modal-head h3 { font-size: 17px; }
@@ -435,9 +473,15 @@
     bottom: -18px;
     z-index: 2;
     gap: 8px;
-    margin: 6px -16px -18px;
-    padding: 12px 16px 18px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, var(--glass-strong) 30%);
+    margin: 10px -16px -18px;
+    padding: 13px 16px 18px;
+    /* Barra sólida com borda em vez de degradê: o conteúdo que passa por
+       baixo ao rolar fica fosco atrás dela, e a divisão fica clara. */
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(14px) saturate(1.5);
+    -webkit-backdrop-filter: blur(14px) saturate(1.5);
+    border-top: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow: 0 -6px 16px rgba(31, 87, 148, 0.07);
     border-radius: 0 0 22px 22px;
   }
   .modal-actions button { flex: 1; justify-content: center; }

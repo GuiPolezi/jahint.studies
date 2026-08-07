@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { bad, reqString, optString, optDate, reqInt, optJsonContent } from '../lib/validate.js'
 import * as Works from '../models/works.model.js'
+import { decodeFileName } from '../config/uploads.js'
 import { assertClass, assertWork, assertWorkTab, getAttachment } from '../models/ownership.js'
 
 const WORK_TYPES = ['tarefa', 'trabalho']
@@ -104,7 +105,7 @@ export async function addAttachment(req, res) {
   await assertWork(req.userId, req.params.id)
   if (!req.file) bad('Envie um arquivo no campo "file".')
   const attachment = await Works.addAttachment(req.params.id, {
-    fileName: req.file.originalname,
+    fileName: decodeFileName(req.file.originalname),
     filePath: req.file.path,
     size: req.file.size,
     mime: req.file.mimetype || 'application/octet-stream',

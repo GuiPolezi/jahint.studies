@@ -43,7 +43,13 @@ async function request(method, path, body) {
     body: isForm ? body : body !== undefined ? JSON.stringify(body) : undefined,
   })
   const json = await res.json().catch(() => null)
-  if (!res.ok) throw new ApiError(res.status, json?.error || 'Erro de comunicação com o servidor.')
+  if (!res.ok) {
+    // 413 sem corpo JSON = o proxy (nginx) barrou antes de chegar na API.
+    // O padrão do nginx é client_max_body_size 1m, menor que uma foto de celular.
+    if (res.status === 413 && !json?.error)
+      throw new ApiError(413, 'Arquivo grande demais para o servidor. Aumente o limite de upload do proxy (nginx: client_max_body_size).')
+    throw new ApiError(res.status, json?.error || 'Erro de comunicação com o servidor.')
+  }
   return json
 }
 

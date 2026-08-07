@@ -33,14 +33,30 @@ const HIGHLIGHT_COLORS = [
   ['Rosa', '#fbcfe8'], ['Laranja', '#fed7aa'], ['Roxo', '#e9d5ff'],
 ]
 
+// Conteúdo já carregado nesta sessão, por aba/anotação. Sem esse cache,
+// alternar entre as abas de um trabalho refazia a busca no servidor: surgia
+// "Carregando…", a altura da página despencava e a rolagem voltava ao topo
+// no meio da escrita. Limpo no logout para não vazar entre contas.
+const contentCache = new Map()
+export const clearContentCache = () => contentCache.clear()
+
 // Hook: carrega o conteúdo do servidor e salva automaticamente (debounce).
 // kind: 'note' (anotação de aula) ou 'tab' (aba de trabalho); id: o id dela.
 export function useAutosaveContent(kind, id) {
-  const [initial, setInitial] = useState(undefined) // undefined = carregando
+  const cacheKey = `${kind}:${id}`
+  const [initial, setInitial] = useState(() =>
+    contentCache.has(cacheKey) ? contentCache.get(cacheKey) : undefined) // undefined = carregando
   const [status, setStatus] = useState('idle')
   const timer = useRef(null)
+  const pending = useRef(null)
+
+  const save = useCallback(
+    json => (kind === 'note' ? api.updNote(id, { content: json }) : api.updTab(id, { content: json })),
+    [kind, id]
+  )
 
   useEffect(() => {
+    if (contentCache.has(cacheKey)) return // já em memória: entra direto, sem piscar
     let alive = true
     setInitial(undefined)
     setStatus('idle')
@@ -48,24 +64,36 @@ export function useAutosaveContent(kind, id) {
       ? api.getNote(id).then(r => r.note?.content ?? null)
       : api.getTabContent(id).then(r => r.content ?? null)
     load
-      .then(v => { if (alive) setInitial(v) })
+      .then(v => { if (alive) { contentCache.set(cacheKey, v); setInitial(v) } })
       .catch(() => { if (alive) { setInitial(null); setStatus('error') } })
-    return () => { alive = false; clearTimeout(timer.current) }
-  }, [kind, id])
+    return () => { alive = false }
+  }, [cacheKey, kind, id])
+
+  // Ao trocar de aba, grava o que ainda estava esperando o debounce em vez
+  // de descartar — digitar e trocar de aba rápido perdia o último trecho.
+  useEffect(() => () => {
+    if (!timer.current) return
+    clearTimeout(timer.current)
+    timer.current = null
+    if (pending.current !== null) save(pending.current).catch(() => {})
+  }, [save])
 
   const onChange = useCallback(json => {
+    contentCache.set(cacheKey, json) // mantém o cache em dia enquanto digita
+    pending.current = json
     setStatus('saving')
     clearTimeout(timer.current)
     timer.current = setTimeout(async () => {
+      timer.current = null
       try {
-        if (kind === 'note') await api.updNote(id, { content: json })
-        else await api.updTab(id, { content: json })
+        await save(json)
+        pending.current = null
         setStatus('saved')
       } catch {
         setStatus('error')
       }
     }, 600)
-  }, [kind, id])
+  }, [cacheKey, save])
 
   return { initial, status, onChange }
 }

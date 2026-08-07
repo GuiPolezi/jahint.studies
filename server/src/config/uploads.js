@@ -11,6 +11,14 @@ const WORKS_DIR = path.join(UPLOAD_DIR, 'works')
 
 for (const dir of [AVATAR_DIR, WORKS_DIR]) fs.mkdirSync(dir, { recursive: true })
 
+// O multipart entrega o nome do arquivo em latin1: "relatório.pdf" chega
+// como "relatÃ³rio.pdf". Reinterpreta em UTF-8, mantendo o original se a
+// conversão não resultar em texto válido.
+export function decodeFileName(name) {
+  const decoded = Buffer.from(name, 'latin1').toString('utf8')
+  return decoded.includes('�') ? name : decoded
+}
+
 const storageIn = dir => multer.diskStorage({
   destination: (req, file, cb) => cb(null, dir),
   filename: (req, file, cb) => {

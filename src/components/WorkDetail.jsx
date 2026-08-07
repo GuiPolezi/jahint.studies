@@ -102,10 +102,6 @@ export default function WorkDetail({ workId }) {
             {' '}{done ? <span className="due-chip due-done">Concluído 🎉</span> : <DueChip date={work.dueDate} />}
           </p>
         </div>
-        <button
-          className="btn-danger"
-          onClick={() => { if (confirm(`Excluir "${work.title}" e todas as suas anotações e arquivos?`)) { delWork(work.id); nav('works', { yearId: year?.id, semesterId: sem?.id }) } }}
-        ><Trash2 size={15} /> Excluir</button>
       </header>
 
       <div className="work-info panel">
@@ -225,6 +221,19 @@ export default function WorkDetail({ workId }) {
             ))}
           </ul>
         )}
+      </section>
+
+      {/* Exclusão fica no fim, longe do topo: no cabeçalho ela era o primeiro
+          botão da tela e um toque errado apagava o trabalho inteiro. */}
+      <section className="danger-zone">
+        <div className="danger-zone-text">
+          <strong>Excluir este trabalho</strong>
+          <small>Remove também as anotações das abas e os arquivos anexados. Não há como desfazer.</small>
+        </div>
+        <button
+          className="btn-danger"
+          onClick={() => { if (confirm(`Excluir "${work.title}" e todas as suas anotações e arquivos?`)) { delWork(work.id); nav('works', { yearId: year?.id, semesterId: sem?.id }) } }}
+        ><Trash2 size={15} /> Excluir</button>
       </section>
     </div>
   )

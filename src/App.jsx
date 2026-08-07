@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, getToken, setToken, purgeLegacyLocalData } from './lib/api'
 import { StoreProvider } from './store/StoreProvider'
+import { clearContentCache } from './components/RichEditor'
 import AuthScreen from './components/AuthScreen'
 import Shell from './components/Shell'
 
@@ -27,6 +28,7 @@ export default function App() {
 
   const onLogout = () => {
     setToken(null)
+    clearContentCache() // anotações em memória não podem vazar para a próxima conta
     setInitialData(null)
     setUser(null)
   }

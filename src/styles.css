@@ -454,7 +454,22 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .save-status.saving { color: var(--ink-faint); }
 .save-status.saved { color: var(--done); }
 .save-status.error { color: var(--urgent); }
-.editor-loading { padding: 40px; text-align: center; color: var(--ink-faint); font-size: 13.5px; }
+/* min-height igual ao do editor: sem isso, a troca de aba encolhia o painel
+   por um instante e a página saltava de volta para o topo. */
+.editor-loading {
+  padding: 40px; text-align: center; color: var(--ink-faint); font-size: 13.5px;
+  min-height: 320px; display: grid; place-items: center;
+}
+
+/* Área de exclusão, no fim da tela do trabalho */
+.danger-zone {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  margin-top: 16px; padding: 14px 18px; border-radius: var(--radius);
+  background: rgba(224, 40, 79, 0.07); border: 1px solid rgba(224, 40, 79, 0.25);
+}
+.danger-zone-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.danger-zone-text strong { font-size: 14px; color: #9f1239; }
+.danger-zone-text small { font-size: 12px; color: var(--ink-soft); }
 
 /* ---------- editor rico ---------- */
 .rich-editor { display: flex; flex-direction: column; border-radius: var(--radius-sm); overflow: visible; }
