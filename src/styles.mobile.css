@@ -278,20 +278,37 @@
      própria e alinhamento centralizado: é ELE que empurra o campo para fora
      do cartão — width:100% no <input> não alcança o conteúdo interno.
      O texto centralizado nesses campos é justamente o sintoma disso. */
-  input[type='date'], input[type='time'], input[type='number'] {
+  /* appearance:none é a peça que faltava: enquanto o campo mantém a
+     aparência nativa, o Safari o dimensiona pelo conteúdo e ignora a largura
+     do contêiner. Sem ela, o campo volta a se comportar como um campo de
+     texto comum. O ícone do seletor é preservado logo abaixo. */
+  input[type='date'], input[type='time'], input[type='datetime-local'] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    box-sizing: border-box;
+  }
+  input[type='date'], input[type='time'],
+  input[type='datetime-local'], input[type='number'] {
     width: 100%;
     max-width: 100%;
     min-width: 0;
   }
   input[type='date']::-webkit-date-and-time-value,
-  input[type='time']::-webkit-date-and-time-value {
+  input[type='time']::-webkit-date-and-time-value,
+  input[type='datetime-local']::-webkit-date-and-time-value {
     width: 100%;
     min-width: 0;
+    margin: 0;
     text-align: left;
   }
-  /* O seletor nativo não pode ditar a largura mínima do campo */
+  /* Sem appearance nativa o ícone some no Chrome/Android — devolvido aqui */
   input[type='date']::-webkit-calendar-picker-indicator,
-  input[type='time']::-webkit-calendar-picker-indicator { flex-shrink: 0; }
+  input[type='time']::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
 
   .note-date-input { flex: 1 1 140px; min-width: 0; }
   .slot-row input[type='time'] { flex: 1 1 0; min-width: 0; }
