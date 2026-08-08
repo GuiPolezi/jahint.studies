@@ -461,6 +461,20 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   min-height: 320px; display: grid; place-items: center;
 }
 
+/* Arquivos anexados à anotação, logo abaixo do editor */
+.note-files {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: 12px; border-top: 1px solid rgba(160,200,235,0.45);
+}
+.note-files-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.note-files-head h3 {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 700; color: var(--ink-soft);
+}
+.note-files .panel-empty { padding: 4px 0 2px; }
+/* O contador de anexos na lista lateral fica na mesma linha da data */
+.note-clip { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
+
 /* Área de exclusão, no fim da tela do trabalho */
 .danger-zone {
   display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;

@@ -72,6 +72,18 @@ export async function assertWorkTab(userId, tabId) {
   return rows[0].work_id
 }
 
+export async function getNoteAttachment(userId, attId) {
+  const rows = await q(
+    `SELECT a.* FROM note_attachments a
+     JOIN notes n ON n.id = a.note_id
+     JOIN classes c ON c.id = n.class_id
+     JOIN semesters s ON s.id = c.semester_id
+     JOIN years y ON y.id = s.year_id
+     WHERE a.id = ? AND y.user_id = ?`, [attId, userId])
+  if (!rows.length) notFound('Anexo não encontrado.')
+  return rows[0]
+}
+
 export async function getAttachment(userId, attId) {
   const rows = await q(
     `SELECT a.* FROM work_attachments a

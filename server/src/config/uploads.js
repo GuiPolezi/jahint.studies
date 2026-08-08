@@ -8,8 +8,9 @@ import { uid } from '../lib/ids.js'
 export const UPLOAD_DIR = process.env.UPLOAD_DIR || 'uploads'
 const AVATAR_DIR = path.join(UPLOAD_DIR, 'avatars')
 const WORKS_DIR = path.join(UPLOAD_DIR, 'works')
+const NOTES_DIR = path.join(UPLOAD_DIR, 'notes')
 
-for (const dir of [AVATAR_DIR, WORKS_DIR]) fs.mkdirSync(dir, { recursive: true })
+for (const dir of [AVATAR_DIR, WORKS_DIR, NOTES_DIR]) fs.mkdirSync(dir, { recursive: true })
 
 // O multipart entrega o nome do arquivo em latin1: "relatório.pdf" chega
 // como "relatÃ³rio.pdf". Reinterpreta em UTF-8, mantendo o original se a
@@ -40,4 +41,11 @@ export const avatarUpload = multer({
 export const attachmentUpload = multer({
   storage: storageIn(WORKS_DIR),
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB por arquivo
+})
+
+// Anexos de anotação de aula (slides, PDFs, .ova, códigos...). Pasta separada
+// da de trabalhos para o disco continuar legível, mesmo limite por arquivo.
+export const noteAttachmentUpload = multer({
+  storage: storageIn(NOTES_DIR),
+  limits: { fileSize: 25 * 1024 * 1024 },
 })

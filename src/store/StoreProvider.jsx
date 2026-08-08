@@ -8,7 +8,7 @@ const EMPTY = {
   years: [],        // { id, number, calendarYear }
   semesters: [],    // { id, yearId, number }
   classes: [],      // { id, semesterId, name, professor, color, slots: [{day, start, end}] }
-  notes: [],        // { id, classId, title, date, updatedAt }  (conteúdo carregado sob demanda)
+  notes: [],        // { id, classId, title, date, updatedAt, attachments }  (conteúdo carregado sob demanda)
   works: [],        // { id, classId, title, type, dueDate, delivery, members, progress, tabs, attachments, createdAt }
   exams: [],        // { id, classId, label, date, time, topics }
   activeSemesterId: null,
@@ -215,6 +215,28 @@ export function StoreProvider({ user, initialData, onLogout, onUserChanged, chil
         const res = await run(api.delNote(id))
         if (res) patch(d => ({ ...d, notes: d.notes.filter(n => n.id !== id) }))
       },
+      async uploadNoteAttachment(noteId, file) {
+        const res = await run(api.addNoteAttachment(noteId, file))
+        if (res) patch(d => ({
+          ...d,
+          notes: d.notes.map(n =>
+            n.id === noteId ? { ...n, attachments: [...(n.attachments || []), res.attachment] } : n
+          ),
+        }))
+        return res?.attachment || null
+      },
+      async delNoteAttachment(noteId, attId) {
+        const res = await run(api.delNoteAttachment(attId))
+        if (res) patch(d => ({
+          ...d,
+          notes: d.notes.map(n =>
+            n.id === noteId
+              ? { ...n, attachments: (n.attachments || []).filter(a => a.id !== attId) }
+              : n
+          ),
+        }))
+      },
+      downloadNoteAttachment: att => run(api.downloadNoteAttachment(att)),
 
       // ---------- trabalhos e tarefas ----------
       async addWork({ classId, title, type, dueDate, delivery }) {

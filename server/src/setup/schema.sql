@@ -71,6 +71,21 @@ CREATE TABLE IF NOT EXISTS notes (
   INDEX idx_notes_class (class_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Anexos de anotação: mesma ideia de work_attachments (arquivo no disco,
+-- caminho no banco), mas presos à anotação de aula. O CASCADE remove as
+-- linhas; os arquivos em si são apagados pelo controller antes do DELETE.
+CREATE TABLE IF NOT EXISTS note_attachments (
+  id         CHAR(24)     NOT NULL PRIMARY KEY,
+  note_id    CHAR(24)     NOT NULL,
+  file_name  VARCHAR(255) NOT NULL,  -- nome original do arquivo
+  file_path  VARCHAR(255) NOT NULL,  -- caminho no disco do servidor
+  size_bytes INT UNSIGNED NULL,
+  mime_type  VARCHAR(120) NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_note_attachments_note FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+  INDEX idx_note_attachments_note (note_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS works (
   id         CHAR(24)     NOT NULL PRIMARY KEY,
   class_id   CHAR(24)     NOT NULL,

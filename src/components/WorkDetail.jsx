@@ -1,22 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  ChevronLeft, Trash2, Plus, X, Upload, Download,
-  File, FileText, FileArchive, FileCode, FileImage,
-} from 'lucide-react'
+import { ChevronLeft, Trash2, Plus, X, Upload, Download } from 'lucide-react'
 import { useStore, classInfo, termLabel, ClassSelect } from '../store/StoreProvider'
-import { DueChip } from './ui'
+import { DueChip, fileIcon } from './ui'
 import RichEditor, { useAutosaveContent, SaveStatus } from './RichEditor'
 import { formatBytes } from '../lib/utils'
 import { DELIVERY_OPTIONS } from './WorksView'
-
-function fileIcon(att) {
-  const ext = (att.name.split('.').pop() || '').toLowerCase()
-  if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext)) return <FileText size={18} />
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return <FileArchive size={18} />
-  if (['js', 'jsx', 'ts', 'py', 'java', 'c', 'cpp', 'cs', 'html', 'css', 'json', 'sql'].includes(ext)) return <FileCode size={18} />
-  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return <FileImage size={18} />
-  return <File size={18} />
-}
 
 function TabEditor({ tab }) {
   const { initial, status, onChange } = useAutosaveContent('tab', tab.id)

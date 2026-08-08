@@ -58,6 +58,28 @@ const post = (path, body) => request('POST', path, body)
 const put = (path, body) => request('PUT', path, body)
 const del = path => request('DELETE', path)
 
+// Envia um arquivo em multipart no campo "file"
+const postFile = (path, file) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return post(path, fd)
+}
+
+// Download autenticado: baixa o blob e dispara o "salvar como" no navegador.
+// Um <a href> simples não serve — a rota exige o header Authorization.
+async function downloadTo(path, fileName) {
+  const res = await fetch(BASE + path, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  })
+  if (!res.ok) throw new ApiError(res.status, 'Arquivo não encontrado no servidor.')
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
+}
+
 export const api = {
   // ---------- conta ----------
   register: form => post('/auth/register', form)
@@ -94,6 +116,11 @@ export const api = {
   updNote: (id, changes) => put(`/notes/${id}`, changes),  // { title?, date?, content? }
   delNote: id => del(`/notes/${id}`),
 
+  // Anexos da anotação — mesmos verbos dos anexos de trabalho
+  addNoteAttachment: (noteId, file) => postFile(`/notes/${noteId}/attachments`, file),
+  delNoteAttachment: attId => del(`/note-attachments/${attId}`),
+  downloadNoteAttachment: att => downloadTo(`/note-attachments/${att.id}/download`, att.name),
+
   // ---------- trabalhos ----------
   listWorks: () => get('/works'),
   addWork: work => post('/works', work),
@@ -106,25 +133,9 @@ export const api = {
   getTabContent: tabId => get(`/work-tabs/${tabId}/content`),
   updTab: (tabId, changes) => put(`/work-tabs/${tabId}`, changes),
   delWorkTab: tabId => del(`/work-tabs/${tabId}`),
-  addAttachment: (workId, file) => {
-    const fd = new FormData()
-    fd.append('file', file)
-    return post(`/works/${workId}/attachments`, fd)
-  },
+  addAttachment: (workId, file) => postFile(`/works/${workId}/attachments`, file),
   delAttachment: attId => del(`/attachments/${attId}`),
-  // Download autenticado: baixa o blob e dispara o "salvar como" no navegador
-  async downloadAttachment(att) {
-    const res = await fetch(`${BASE}/attachments/${att.id}/download`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-    if (!res.ok) throw new ApiError(res.status, 'Arquivo não encontrado no servidor.')
-    const url = URL.createObjectURL(await res.blob())
-    const a = document.createElement('a')
-    a.href = url
-    a.download = att.name
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
-  },
+  downloadAttachment: att => downloadTo(`/attachments/${att.id}/download`, att.name),
 
   // ---------- provas ----------
   listExams: () => get('/exams'),

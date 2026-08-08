@@ -102,7 +102,14 @@ export async function removeTab(req, res) {
 
 // ---------- anexos ----------
 export async function addAttachment(req, res) {
-  await assertWork(req.userId, req.params.id)
+  // Mesmo cuidado dos anexos de anotação: o multer já gravou o arquivo quando
+  // este handler roda, então uma rejeição por posse precisa apagá-lo do disco.
+  try {
+    await assertWork(req.userId, req.params.id)
+  } catch (err) {
+    if (req.file) fs.promises.unlink(req.file.path).catch(() => {})
+    throw err
+  }
   if (!req.file) bad('Envie um arquivo no campo "file".')
   const attachment = await Works.addAttachment(req.params.id, {
     fileName: decodeFileName(req.file.originalname),

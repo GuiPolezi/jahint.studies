@@ -1,9 +1,74 @@
-import { useEffect, useState } from 'react'
-import { ChevronLeft, Plus, Trash2, FileText, Clock } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, Plus, Trash2, FileText, Clock, Upload, Download, Paperclip } from 'lucide-react'
 import { useStore } from '../store/StoreProvider'
-import { Modal, Field, EmptyState } from './ui'
+import { Modal, Field, EmptyState, fileIcon } from './ui'
 import RichEditor, { useAutosaveContent, SaveStatus } from './RichEditor'
-import { formatBR, todayISO, DAYS } from '../lib/utils'
+import { formatBR, todayISO, DAYS, formatBytes } from '../lib/utils'
+
+// Arquivos da anotação: slides do professor, PDFs de exercício, códigos da
+// aula. Mesma mecânica dos anexos de trabalho — o arquivo vai para o disco do
+// servidor e a anotação guarda só a referência.
+function NoteFiles({ note }) {
+  const { uploadNoteAttachment, delNoteAttachment, downloadNoteAttachment } = useStore()
+  const [uploading, setUploading] = useState(false)
+  const input = useRef(null)
+  const files = note.attachments || []
+
+  const onFiles = async e => {
+    const picked = [...(e.target.files || [])]
+    e.target.value = ''
+    if (!picked.length) return
+    setUploading(true)
+    // Sequencial de propósito: o upload paralelo de vários arquivos grandes
+    // estourava o limite do proxy e a barra de progresso ficava sem sentido.
+    for (const f of picked) await uploadNoteAttachment(note.id, f)
+    setUploading(false)
+  }
+
+  return (
+    <div className="note-files">
+      <div className="note-files-head">
+        <h3><Paperclip size={14} /> Arquivos da aula ({files.length})</h3>
+        <button
+          className="btn-ghost btn-sm"
+          onClick={() => input.current?.click()}
+          disabled={uploading}
+        >
+          <Upload size={14} /> {uploading ? 'Enviando…' : 'Anexar'}
+        </button>
+        <input ref={input} type="file" multiple hidden onChange={onFiles} />
+      </div>
+
+      {files.length === 0 ? (
+        <p className="panel-empty">
+          Anexe o slide do professor, a lista de exercícios, o código da aula — qualquer arquivo até 25MB.
+        </p>
+      ) : (
+        <ul className="file-list">
+          {files.map(att => (
+            <li key={att.id}>
+              <span className="file-icon">{fileIcon(att)}</span>
+              <div className="file-text">
+                <strong>{att.name}</strong>
+                <small>{formatBytes(att.size)}</small>
+              </div>
+              <button
+                className="icon-btn"
+                title="Baixar"
+                onClick={() => downloadNoteAttachment(att)}
+              ><Download size={16} /></button>
+              <button
+                className="icon-btn danger"
+                title="Excluir arquivo"
+                onClick={() => { if (confirm(`Excluir o arquivo "${att.name}"?`)) delNoteAttachment(note.id, att.id) }}
+              ><Trash2 size={16} /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 // Painel do editor — remontado por anotação (key) para isolar carregamento/salvamento
 function NoteEditorPane({ note }) {
@@ -30,13 +95,15 @@ function NoteEditorPane({ note }) {
         <button
           className="icon-btn danger"
           title="Excluir anotação"
-          onClick={() => { if (confirm(`Excluir a anotação "${note.title}"?`)) delNote(note.id) }}
+          onClick={() => { if (confirm(`Excluir a anotação "${note.title}" e seus arquivos?`)) delNote(note.id) }}
         ><Trash2 size={16} /></button>
       </div>
 
       {initial === undefined
         ? <div className="editor-loading">Carregando anotação…</div>
         : <RichEditor initial={initial} onChange={onChange} />}
+
+      <NoteFiles note={note} />
     </div>
   )
 }
@@ -119,7 +186,14 @@ export default function ClassView({ classId }) {
                   onClick={() => setSelId(n.id)}
                 >
                   <strong>{n.title}</strong>
-                  <small><Clock size={11} /> {n.date ? formatBR(n.date) : 'sem data'}</small>
+                  <small>
+                    <Clock size={11} /> {n.date ? formatBR(n.date) : 'sem data'}
+                    {n.attachments?.length > 0 && (
+                      <span className="note-clip" title={`${n.attachments.length} arquivo(s)`}>
+                        <Paperclip size={11} /> {n.attachments.length}
+                      </span>
+                    )}
+                  </small>
                 </li>
               ))}
             </ul>

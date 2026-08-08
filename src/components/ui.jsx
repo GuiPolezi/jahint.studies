@@ -1,4 +1,6 @@
-import { X } from 'lucide-react'
+import {
+  X, File, FileText, FileArchive, FileCode, FileImage,
+} from 'lucide-react'
 import { daysUntil, urgency, urgencyLabel, CLASS_COLORS } from '../lib/utils'
 
 export function Modal({ title, onClose, children, width = 540 }) {
@@ -46,6 +48,17 @@ export function ColorPicker({ value, onChange }) {
       ))}
     </div>
   )
+}
+
+// Ícone do anexo pela extensão do nome. Compartilhado pelos anexos de
+// trabalho e de anotação de aula, para os dois nunca divergirem.
+export function fileIcon(att, size = 18) {
+  const ext = (att.name.split('.').pop() || '').toLowerCase()
+  if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext)) return <FileText size={size} />
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return <FileArchive size={size} />
+  if (['js', 'jsx', 'ts', 'py', 'java', 'c', 'cpp', 'cs', 'html', 'css', 'json', 'sql'].includes(ext)) return <FileCode size={size} />
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return <FileImage size={size} />
+  return <File size={size} />
 }
 
 export function EmptyState({ icon: Icon, title, text, children }) {
