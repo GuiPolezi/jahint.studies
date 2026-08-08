@@ -463,15 +463,32 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 
 /* Arquivos anexados à anotação, logo abaixo do editor */
 .note-files {
-  display: flex; flex-direction: column; gap: 8px;
-  padding-top: 12px; border-top: 1px solid rgba(160,200,235,0.45);
+  display: flex; flex-direction: column; gap: 6px;
+  padding-top: 10px; border-top: 1px solid rgba(160,200,235,0.45);
 }
 .note-files-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .note-files-head h3 {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
   font-size: 14px; font-weight: 700; color: var(--ink-soft);
 }
-.note-files .panel-empty { padding: 4px 0 2px; }
+.note-files .panel-empty { padding: 2px 0 0; }
+
+/* Faixa de altura fixa: a lista rola por dentro em vez de crescer. Sem isso,
+   cada anexo novo empurrava a página e a barra de rolagem voltava. */
+.note-files { max-height: 160px; overflow: hidden; }
+.note-files .file-list { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* O editor devolve exatamente a altura que o bloco de arquivos ocupa
+   (160px da faixa + 10px do gap do .note-editor-pane). Assim a tela de
+   anotação tem a MESMA altura total de antes do recurso de anexos — em
+   notebook os 60vh do editor somados aos arquivos estouravam a janela e
+   o .content passava a exibir barra de rolagem vertical.
+   O min-height segue a mesma conta: 320px originais - 170px. */
+.note-editor-pane .editor-scroll {
+  min-height: 150px;
+  max-height: calc(60vh - 170px);
+}
+.note-editor-pane .editor-loading { min-height: 150px; }
 /* O contador de anexos na lista lateral fica na mesma linha da data */
 .note-clip { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
 

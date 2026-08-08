@@ -40,9 +40,7 @@ function NoteFiles({ note }) {
       </div>
 
       {files.length === 0 ? (
-        <p className="panel-empty">
-          Anexe o slide do professor, a lista de exercícios, o código da aula — qualquer arquivo até 25MB.
-        </p>
+        <p className="panel-empty">Slides, listas de exercícios, códigos — até 25MB por arquivo.</p>
       ) : (
         <ul className="file-list">
           {files.map(att => (

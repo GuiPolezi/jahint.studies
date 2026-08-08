@@ -40,7 +40,7 @@ export const avatarUpload = multer({
 
 export const attachmentUpload = multer({
   storage: storageIn(WORKS_DIR),
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB por arquivo
+  limits: { fileSize: 3 * 1024 * 1024 * 1024 }, // 25MB por arquivo
 })
 
 // Anexos de anotação de aula (slides, PDFs, .ova, códigos...). Pasta separada
