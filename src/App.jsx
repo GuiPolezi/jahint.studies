@@ -4,11 +4,14 @@ import { StoreProvider } from './store/StoreProvider'
 import { clearContentCache } from './components/RichEditor'
 import AuthScreen from './components/AuthScreen'
 import Shell from './components/Shell'
+import SplashScreen from './components/SplashScreen'
 
 export default function App() {
   // undefined = verificando sessão | null = deslogado | objeto = logado
   const [user, setUser] = useState(undefined)
   const [initialData, setInitialData] = useState(null)
+  // splash fica montada por cima até a animação de saída terminar
+  const [splashDone, setSplashDone] = useState(false)
 
   useEffect(() => {
     purgeLegacyLocalData() // limpa contas/dados da era 100% local (uma vez por carga)
@@ -33,23 +36,30 @@ export default function App() {
     setUser(null)
   }
 
-  if (user === undefined) {
-    return <div className="app-loading">Carregando…</div>
-  }
-
-  if (!user) {
-    return <AuthScreen onAuthed={onAuthed} />
+  // O app renderiza por baixo da splash assim que a sessão resolve; a splash
+  // faz o crossfade de saída e só então é desmontada.
+  const ready = user !== undefined
+  let view = null
+  if (ready) {
+    view = !user ? (
+      <AuthScreen onAuthed={onAuthed} />
+    ) : (
+      <StoreProvider
+        key={user.id}
+        user={user}
+        initialData={initialData}
+        onLogout={onLogout}
+        onUserChanged={setUser}
+      >
+        <Shell />
+      </StoreProvider>
+    )
   }
 
   return (
-    <StoreProvider
-      key={user.id}
-      user={user}
-      initialData={initialData}
-      onLogout={onLogout}
-      onUserChanged={setUser}
-    >
-      <Shell />
-    </StoreProvider>
+    <>
+      {view}
+      {!splashDone && <SplashScreen ready={ready} onFinish={() => setSplashDone(true)} />}
+    </>
   )
 }
