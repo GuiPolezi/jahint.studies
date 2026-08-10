@@ -775,16 +775,18 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   padding: 24px;
 }
 .splash-word-wrap {
+  /* o glow fica FORA do elemento mascarado: aplicado depois da máscara, ele
+     nasce só da parte já escrita e nunca é cortado pela caixa da máscara
+     (filter dentro de elemento mascarado gera recortes/retângulos no Chromium) */
+  filter: drop-shadow(0 12px 26px rgba(10, 132, 255, 0.32)) drop-shadow(0 1px 0 rgba(255, 255, 255, 0.75));
+}
+.splash-word-mask {
   position: relative;
   /* --reveal é animado pelo GSAP (0% → 118%): máscara de borda suave que
      "escreve" a palavra da esquerda para a direita */
   --reveal: 0%;
   -webkit-mask-image: linear-gradient(105deg, #000 calc(var(--reveal) - 16%), transparent var(--reveal));
   mask-image: linear-gradient(105deg, #000 calc(var(--reveal) - 16%), transparent var(--reveal));
-  /* o glow fica aqui (e não no .splash-word): filter em filho de elemento
-     mascarado gera um retângulo fantasma no Chromium; no mesmo elemento o
-     filter aplica antes da máscara e o brilho é "escrito" junto */
-  filter: drop-shadow(0 12px 26px rgba(10, 132, 255, 0.32)) drop-shadow(0 1px 0 rgba(255, 255, 255, 0.75));
 }
 .splash-word,
 .splash-shine {

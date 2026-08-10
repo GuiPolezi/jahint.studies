@@ -39,7 +39,7 @@ export default function SplashScreen({ ready, onFinish }) {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let cancelled = false
 
-    const wrap = root.querySelector('.splash-word-wrap')
+    const wrap = root.querySelector('.splash-word-mask')
     const shine = root.querySelector('.splash-shine')
     const dots = root.querySelectorAll('.splash-dot')
 
@@ -101,8 +101,10 @@ export default function SplashScreen({ ready, onFinish }) {
       </div>
       <div className="splash-center">
         <div className="splash-word-wrap">
-          <span className="splash-word">Jahint.studies</span>
-          <span className="splash-shine" aria-hidden="true">Jahint.studies</span>
+          <div className="splash-word-mask">
+            <span className="splash-word">Jahint.studies</span>
+            <span className="splash-shine" aria-hidden="true">Jahint.studies</span>
+          </div>
         </div>
         <div className="splash-status">
           <span>Carregando</span>
