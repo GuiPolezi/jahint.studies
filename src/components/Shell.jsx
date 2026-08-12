@@ -55,12 +55,17 @@ export default function Shell() {
 
   const currentNav = NAV.find(item => item.match.includes(route.view)) || NAV[0]
 
+  // Página de anotações de aula: no desktop o menu recolhe para a lateral,
+  // liberando a largura toda para o editor. Ele volta ao pousar o mouse na
+  // borda esquerda (faixa .sidebar-hotzone) ou ao focar a navegação via teclado.
+  const sidebarPeek = route.view === 'class'
+
   const avatar = user.avatar
     ? <img src={user.avatar} alt="" className="user-avatar" />
     : <div className="user-avatar user-avatar-fallback">{(user.nickname || '?')[0].toUpperCase()}</div>
 
   return (
-    <div className="app">
+    <div className={'app' + (sidebarPeek ? ' sidebar-peek' : '')}>
       <div className="bg-aero">
         <div className="orb orb-1" /><div className="orb orb-2" /><div className="orb orb-3" />
         <div className="orb orb-4" /><div className="orb orb-5" />
@@ -88,6 +93,15 @@ export default function Shell() {
       {/* Fundo escurecido: fecha a gaveta ao tocar fora */}
       {menuOpen && (
         <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+      )}
+
+      {/* Faixa sensível ao mouse na borda esquerda (só existe no modo peek do
+          desktop). Precisa vir ANTES do <aside> no DOM: o CSS usa o seletor de
+          irmão (~) para revelar a sidebar quando esta faixa recebe hover. */}
+      {sidebarPeek && (
+        <div className="sidebar-hotzone" aria-hidden="true">
+          <div className="sidebar-handle" />
+        </div>
       )}
 
       <aside className={'sidebar' + (menuOpen ? ' open' : '')}>

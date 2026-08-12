@@ -68,6 +68,9 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .app { position: relative; z-index: 1; display: flex; height: 100vh; padding: 14px; gap: 14px; }
 
 .sidebar {
+  /* position: relative ancora o ::before (brilho do topo) na própria sidebar
+     em todos os modos — sem ele, no desktop o brilho ancorava no .app */
+  position: relative;
   width: 250px; flex-shrink: 0; display: flex; flex-direction: column;
   background: var(--glass);
   backdrop-filter: blur(28px) saturate(1.6); -webkit-backdrop-filter: blur(28px) saturate(1.6);
@@ -115,6 +118,74 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .user-chip-text small { font-size: 11px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .content { flex: 1; overflow-y: auto; overflow-x: hidden; border-radius: var(--radius); scroll-behavior: smooth; }
+
+/* ---------- modo peek: menu recolhido na página de anotações ----------
+   Na tela de anotações (.app.sidebar-peek) o menu desliza para fora e o
+   editor ganha a largura toda. Dois movimentos independentes:
+     · margin-left negativo tira a sidebar do fluxo COM animação — o
+       conteúdo se expande no mesmo compasso em que ela sai;
+     · transform (no hover) a traz de volta POR CIMA do conteúdo, sem
+       reflow — o editor não fica "respirando" a cada passada do mouse.
+   Números: 264 = largura (250) + gap (14). O -14px extra do estado
+   recolhido esconde também a borda e o brilho da sombra.
+   Só no desktop: abaixo de 901px a gaveta do styles.mobile.css assume. */
+@media (min-width: 901px) {
+  .app.sidebar-peek .sidebar {
+    margin-left: -264px;
+    transform: translateX(-14px);
+    z-index: 45;
+    background: var(--glass-strong); /* mais opaca: vai flutuar sobre texto */
+    transition:
+      margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.28s,
+      box-shadow 0.32s ease 0.28s; /* delay só ao FECHAR: sair com o mouse
+        por um instante não faz o menu fugir no meio de um clique */
+  }
+  .app.sidebar-peek .sidebar-hotzone:hover ~ .sidebar,
+  .app.sidebar-peek .sidebar:hover,
+  .app.sidebar-peek .sidebar:focus-within {
+    transform: translateX(264px); /* devolve à posição natural, sobre o conteúdo */
+    box-shadow: 0 18px 60px rgba(10, 50, 90, 0.35);
+    transition:
+      margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.32s ease; /* abrir responde na hora, sem delay */
+  }
+
+  /* Faixa invisível que "escuta" o mouse na borda esquerda da tela */
+  .app.sidebar-peek .sidebar-hotzone {
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+    width: 18px;
+    z-index: 40; /* abaixo da sidebar: aberta, ela cobre a faixa */
+  }
+
+  /* Pista visual discreta de que o menu mora ali — some quando ele abre */
+  .sidebar-handle {
+    position: absolute;
+    top: 50%; left: 5px;
+    transform: translateY(-50%);
+    width: 6px; height: 92px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(86, 200, 255, 0.85), rgba(10, 132, 255, 0.7));
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55), 0 2px 10px rgba(10, 132, 255, 0.35);
+    opacity: 0.75;
+    transition: opacity 0.25s ease;
+  }
+  .app.sidebar-peek .sidebar-hotzone:hover .sidebar-handle,
+  .app.sidebar-peek:has(.sidebar:hover) .sidebar-handle,
+  .app.sidebar-peek:has(.sidebar:focus-within) .sidebar-handle { opacity: 0; }
+}
+
+/* Fora do modo peek (ou no mobile) a faixa não existe visualmente */
+.sidebar-hotzone { display: none; }
+@media (min-width: 901px) {
+  .app.sidebar-peek .sidebar-hotzone { display: block; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app.sidebar-peek .sidebar { transition: none; }
+}
 
 /* ---------- views ---------- */
 .view { max-width: 1060px; margin: 0 auto; padding: 12px 6px 40px; }
