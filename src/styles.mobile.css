@@ -240,6 +240,8 @@
   .radio-pill { min-height: 42px; }
   .note-item { min-height: 46px; justify-content: center; }
   .sem-row { min-height: 52px; }
+  .note-files-toggle { min-height: 40px; }
+  .tb-menu-item { min-height: 44px; font-size: 15px; }
   /* Campos com altura uniforme: date/time nativos do iOS e do Android
      renderizam com alturas diferentes dos campos de texto comuns. */
   .field input, .field select, .filter-bar select,
@@ -387,6 +389,10 @@
   .note-editor-head { gap: 7px; }
   .note-title-input { min-width: 0; flex: 1 1 100%; font-size: 17px; }
   .work-title { font-size: 19px; }
+  /* Cabeçalho compacto do desktop volta a quebrar linha no celular */
+  .class-head { row-gap: 6px; }
+  .class-head h1 { white-space: normal; }
+  .class-head .view-sub { flex: 1 1 100%; white-space: normal; overflow: visible; text-overflow: clip; }
 
   /* ---------- trabalhos ---------- */
   .works-grid { grid-template-columns: 1fr; }

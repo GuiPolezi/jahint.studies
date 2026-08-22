@@ -19,7 +19,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code,
   List, ListOrdered, ListTodo, Quote, Minus, Link2, Image as ImageIcon,
   Table as TableIcon, AlignLeft, AlignCenter, AlignRight,
-  Undo2, Redo2, Highlighter, Palette, Eraser, Plus, Trash2,
+  Undo2, Redo2, Highlighter, Palette, Eraser, Plus, Trash2, MoreHorizontal,
 } from 'lucide-react'
 import { readImageResized } from '../lib/utils'
 import { api } from '../lib/api'
@@ -130,9 +130,25 @@ function Popover({ open, onClose, children }) {
   )
 }
 
+// Item do menu "⋯" — mesmo preventDefault do TbBtn: não roubar a seleção do editor
+function MenuItem({ icon: Icon, onClick, active, children }) {
+  return (
+    <button
+      type="button"
+      className={'tb-menu-item' + (active ? ' active' : '')}
+      onMouseDown={e => e.preventDefault()}
+      onClick={onClick}
+    >
+      <Icon size={15} />
+      {children}
+    </button>
+  )
+}
+
 export default function RichEditor({ initial, onChange, placeholder = 'Escreva aqui… use a barra acima para formatar como no Notion.' }) {
   const [colorOpen, setColorOpen] = useState(false)
   const [hlOpen, setHlOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const imgInput = useRef(null)
 
   const editor = useEditor({
@@ -174,6 +190,9 @@ export default function RichEditor({ initial, onChange, placeholder = 'Escreva a
     : editor.isActive('heading', { level: 2 }) ? 'h2'
     : editor.isActive('heading', { level: 3 }) ? 'h3'
     : 'p'
+
+  // Comandos do menu "⋯" fecham o menu ao executar (alinhamentos ficam abertos)
+  const runAndClose = fn => () => { fn(); setMoreOpen(false) }
 
   return (
     <div className="rich-editor">
@@ -252,22 +271,13 @@ export default function RichEditor({ initial, onChange, placeholder = 'Escreva a
         </span>
         <span className="tb-sep" />
 
-        <TbBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Alinhar à esquerda"><AlignLeft size={15} /></TbBtn>
-        <TbBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Centralizar"><AlignCenter size={15} /></TbBtn>
-        <TbBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Alinhar à direita"><AlignRight size={15} /></TbBtn>
-        <span className="tb-sep" />
-
         <TbBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Lista"><List size={15} /></TbBtn>
         <TbBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Lista numerada"><ListOrdered size={15} /></TbBtn>
         <TbBtn onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} title="Lista de tarefas (checkbox)"><ListTodo size={15} /></TbBtn>
-        <TbBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} title="Citação"><Quote size={15} /></TbBtn>
-        <TbBtn onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive('codeBlock')} title="Bloco de código"><Code size={15} /></TbBtn>
-        <TbBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Divisória"><Minus size={15} /></TbBtn>
         <span className="tb-sep" />
 
         <TbBtn onClick={setLink} active={editor.isActive('link')} title="Link"><Link2 size={15} /></TbBtn>
         <TbBtn onClick={() => imgInput.current?.click()} title="Inserir imagem"><ImageIcon size={15} /></TbBtn>
-        <TbBtn onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Inserir tabela"><TableIcon size={15} /></TbBtn>
 
         {editor.isActive('table') && (
           <>
@@ -278,7 +288,27 @@ export default function RichEditor({ initial, onChange, placeholder = 'Escreva a
           </>
         )}
         <span className="tb-sep" />
-        <TbBtn onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} title="Limpar formatação"><Eraser size={15} /></TbBtn>
+
+        <span className="tb-wrap tb-wrap-end">
+          <TbBtn onClick={() => setMoreOpen(o => !o)} active={moreOpen} title="Mais opções"><MoreHorizontal size={15} /></TbBtn>
+          <Popover open={moreOpen} onClose={() => setMoreOpen(false)}>
+            <div className="tb-menu">
+              <div className="tb-menu-label">Alinhamento</div>
+              <div className="tb-menu-row">
+                <TbBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Alinhar à esquerda"><AlignLeft size={15} /></TbBtn>
+                <TbBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Centralizar"><AlignCenter size={15} /></TbBtn>
+                <TbBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Alinhar à direita"><AlignRight size={15} /></TbBtn>
+              </div>
+              <div className="tb-menu-sep" />
+              <MenuItem icon={Quote} active={editor.isActive('blockquote')} onClick={runAndClose(() => editor.chain().focus().toggleBlockquote().run())}>Citação</MenuItem>
+              <MenuItem icon={Code} active={editor.isActive('codeBlock')} onClick={runAndClose(() => editor.chain().focus().toggleCodeBlock().run())}>Bloco de código</MenuItem>
+              <MenuItem icon={Minus} onClick={runAndClose(() => editor.chain().focus().setHorizontalRule().run())}>Divisória</MenuItem>
+              <MenuItem icon={TableIcon} onClick={runAndClose(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}>Tabela</MenuItem>
+              <div className="tb-menu-sep" />
+              <MenuItem icon={Eraser} onClick={runAndClose(() => editor.chain().focus().unsetAllMarks().clearNodes().run())}>Limpar formatação</MenuItem>
+            </div>
+          </Popover>
+        </span>
 
         <input
           ref={imgInput}

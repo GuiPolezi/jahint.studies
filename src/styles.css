@@ -491,11 +491,32 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .color-dot.selected { outline: 3px solid var(--accent); outline-offset: 2px; transform: scale(1.08); }
 
 /* ---------- aula: anotações ---------- */
-.class-layout { display: grid; grid-template-columns: 270px 1fr; gap: 14px; align-items: start; }
+/* Cabeçalho compacto em linha única: a anotação é a protagonista da tela */
+.class-head { align-items: center; margin-bottom: 10px; }
+.class-head .btn-back { margin-bottom: 0; flex-shrink: 0; }
+.class-head h1 { font-size: 20px; letter-spacing: -0.4px; gap: 8px; }
+.class-head .class-dot { width: 11px; height: 11px; box-shadow: 0 0 0 2px rgba(255,255,255,0.6); }
+.class-head .view-sub {
+  margin-top: 0; flex: 1; min-width: 0; font-size: 12.5px;
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@media (min-width: 901px) {
+  .class-head { flex-wrap: nowrap; gap: 12px; }
+  .class-head h1 { white-space: nowrap; }
+}
+
+.class-layout { display: grid; grid-template-columns: 240px 1fr; gap: 14px; align-items: start; }
 @media (max-width: 860px) { .class-layout { grid-template-columns: 1fr; } }
+.notes-list { padding: 12px 10px; }
+.notes-list-head {
+  position: relative; /* acima do brilho .panel::before */
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.7px; text-transform: uppercase;
+  color: var(--ink-faint); padding: 2px 8px 8px;
+}
 .notes-list ul { list-style: none; display: flex; flex-direction: column; gap: 5px; max-height: 62vh; overflow-y: auto; position: relative; }
 .note-item {
-  padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer;
   display: flex; flex-direction: column; gap: 3px; transition: all 0.14s ease;
   border: 1px solid transparent;
 }
@@ -503,7 +524,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .note-item.selected {
   background: rgba(10,132,255,0.13); border-color: rgba(10,132,255,0.3);
 }
-.note-item strong { font-size: 13.5px; }
+.note-item strong { font-size: 13px; }
 .note-item small { font-size: 11.5px; color: var(--ink-faint); display: flex; align-items: center; gap: 4px; }
 
 .note-editor-panel { padding: 14px 16px; }
@@ -532,36 +553,50 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   min-height: 320px; display: grid; place-items: center;
 }
 
-/* Arquivos anexados à anotação, logo abaixo do editor */
+/* Arquivos anexados à anotação: uma linha discreta no rodapé do painel;
+   a lista só aparece quando o usuário expande (empurra o editor, sem overlay) */
 .note-files {
   display: flex; flex-direction: column; gap: 6px;
-  padding-top: 10px; border-top: 1px solid rgba(160,200,235,0.45);
+  padding-top: 8px; border-top: 1px solid rgba(160,200,235,0.45);
 }
-.note-files-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.note-files-head h3 {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
-  font-size: 14px; font-weight: 700; color: var(--ink-soft);
+.note-files-bar { display: flex; align-items: center; gap: 8px; }
+.note-files-toggle {
+  flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
+  padding: 5px 6px; border-radius: 9px; transition: background 0.15s;
 }
-.note-files .panel-empty { padding: 2px 0 0; }
-
-/* Faixa de altura fixa: a lista rola por dentro em vez de crescer. Sem isso,
-   cada anexo novo empurrava a página e a barra de rolagem voltava. */
-.note-files { max-height: 160px; overflow: hidden; }
-.note-files .file-list { flex: 1; min-height: 0; overflow-y: auto; }
-
-/* O editor devolve exatamente a altura que o bloco de arquivos ocupa
-   (160px da faixa + 10px do gap do .note-editor-pane). Assim a tela de
-   anotação tem a MESMA altura total de antes do recurso de anexos — em
-   notebook os 60vh do editor somados aos arquivos estouravam a janela e
-   o .content passava a exibir barra de rolagem vertical.
-   O min-height segue a mesma conta: 320px originais - 170px. */
-.note-editor-pane .editor-scroll {
-  min-height: 150px;
-  max-height: calc(60vh - 170px);
-}
-.note-editor-pane .editor-loading { min-height: 150px; }
+.note-files-toggle:hover:not(:disabled) { background: rgba(255,255,255,0.5); color: var(--ink); }
+.note-files-toggle:disabled { cursor: default; color: var(--ink-faint); }
+.note-files-toggle svg:last-child { transition: transform 0.2s ease; }
+.note-files .file-list { max-height: 200px; overflow-y: auto; }
 /* O contador de anexos na lista lateral fica na mesma linha da data */
 .note-clip { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
+
+/* Modo documento (só desktop): a página de anotação preenche a viewport e o
+   texto rola por dentro do painel — o Shell liga .content-fill na rota 'class'.
+   Cada elo da cadeia precisa de min-height:0, senão o min-height:auto do
+   flex/grid reinfla os painéis e o .content volta a rolar. No mobile nada
+   disso se aplica: o fluxo em coluna continua o mesmo. */
+@media (min-width: 901px) {
+  .content.content-fill { display: flex; flex-direction: column; }
+  .content.content-fill .class-view {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+    width: 100%; padding: 10px 6px 12px;
+  }
+  .content.content-fill .class-layout {
+    flex: 1; min-height: 0;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .content.content-fill .notes-list        { display: flex; flex-direction: column; min-height: 0; }
+  .content.content-fill .notes-list ul     { flex: 1; min-height: 0; max-height: none; }
+  .content.content-fill .note-editor-panel { display: flex; flex-direction: column; min-height: 0; }
+  .content.content-fill .note-editor-pane  { flex: 1; min-height: 0; }
+  .content.content-fill .rich-editor       { flex: 1; min-height: 0; }
+  .content.content-fill .editor-scroll     { flex: 1; min-height: 0; max-height: none; padding: 8px 28px 96px; }
+  .content.content-fill .editor-loading    { flex: 1; min-height: 0; }
+}
 
 /* Área de exclusão, no fim da tela do trabalho */
 .danger-zone {
@@ -577,25 +612,44 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .rich-editor { display: flex; flex-direction: column; border-radius: var(--radius-sm); overflow: visible; }
 .editor-toolbar {
   position: sticky; top: 0; z-index: 5;
-  display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 7px 9px;
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 5px 7px;
   background: rgba(255,255,255,0.82);
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
   border: 1px solid rgba(255,255,255,0.85); border-radius: 15px;
-  box-shadow: var(--shadow-soft); margin-bottom: 10px;
+  box-shadow: var(--shadow-soft); margin-bottom: 8px;
 }
 .tb-btn {
-  display: grid; place-items: center; width: 29px; height: 29px; border-radius: 9px;
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
   color: var(--ink-soft); transition: all 0.12s ease;
 }
 .tb-btn:hover { background: rgba(10,132,255,0.1); color: var(--ink); }
 .tb-btn.active { background: linear-gradient(180deg, #56c8ff, var(--accent)); color: #fff; box-shadow: 0 2px 6px rgba(10,132,255,0.35); }
 .tb-btn:disabled { opacity: 0.35; cursor: default; }
-.tb-sep { width: 1px; height: 20px; background: rgba(120,160,200,0.35); margin: 0 5px; flex-shrink: 0; }
+.tb-sep { width: 1px; height: 16px; background: rgba(120,160,200,0.35); margin: 0 4px; flex-shrink: 0; }
 .tb-select {
-  padding: 5px 8px; border-radius: 9px; border: 1px solid rgba(160,200,235,0.6);
-  background: rgba(255,255,255,0.85); font-size: 12.5px; font-weight: 600; outline: none; cursor: pointer;
+  padding: 4px 7px; border-radius: 9px; border: 1px solid rgba(160,200,235,0.6);
+  background: rgba(255,255,255,0.85); font-size: 12px; font-weight: 600; outline: none; cursor: pointer;
 }
 .tb-wrap { position: relative; }
+/* Menu "⋯": comandos raros saem da barra e viram um menu estilo macOS */
+.tb-menu { display: flex; flex-direction: column; gap: 2px; min-width: 190px; }
+.tb-menu-item {
+  display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 9px;
+  font-size: 13px; font-weight: 600; color: var(--ink-soft); text-align: left;
+  transition: all 0.12s ease; width: 100%;
+}
+.tb-menu-item:hover { background: rgba(10,132,255,0.1); color: var(--ink); }
+.tb-menu-item.active { background: rgba(10,132,255,0.13); color: var(--accent-deep); }
+.tb-menu-label {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--ink-faint); padding: 2px 10px;
+}
+.tb-menu-row { display: flex; gap: 2px; padding: 0 6px 4px; }
+.tb-menu-sep { height: 1px; background: rgba(120,160,200,0.3); margin: 4px 6px; }
+@media (min-width: 901px) {
+  /* alinhado à direita da barra; no mobile o .popover vira diálogo centralizado */
+  .tb-wrap-end .popover { left: auto; right: 0; }
+}
 .pop-backdrop { position: fixed; inset: 0; z-index: 20; }
 .popover {
   position: absolute; top: 34px; left: 0; z-index: 21; padding: 9px;
@@ -614,6 +668,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .editor-scroll { min-height: 320px; max-height: 60vh; overflow-y: auto; cursor: text; padding: 2px 4px; }
 
 .ProseMirror { outline: none; font-size: 14.5px; line-height: 1.65; color: var(--ink); min-height: 300px; }
+/* Medida de leitura confortável (~90 caracteres), como no Notion */
+.class-view .ProseMirror { max-width: 820px; margin-left: auto; margin-right: auto; }
 .ProseMirror > * + * { margin-top: 0.55em; }
 .ProseMirror h1 { font-size: 25px; letter-spacing: -0.5px; margin-top: 0.9em; }
 .ProseMirror h2 { font-size: 20px; letter-spacing: -0.3px; margin-top: 0.8em; }

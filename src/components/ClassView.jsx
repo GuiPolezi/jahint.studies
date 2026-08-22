@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, Plus, Trash2, FileText, Clock, Upload, Download, Paperclip } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Plus, Trash2, FileText, Clock, Upload, Download, Paperclip } from 'lucide-react'
 import { useStore } from '../store/StoreProvider'
 import { Modal, Field, EmptyState, fileIcon } from './ui'
 import RichEditor, { useAutosaveContent, SaveStatus } from './RichEditor'
@@ -11,6 +11,9 @@ import { formatBR, todayISO, DAYS, formatBytes } from '../lib/utils'
 function NoteFiles({ note }) {
   const { uploadNoteAttachment, delNoteAttachment, downloadNoteAttachment } = useStore()
   const [uploading, setUploading] = useState(false)
+  // Recolhido por padrão: uma linha fina que devolve a altura ao editor.
+  // O pane é remontado por anotação (key), então o estado reseta ao trocar.
+  const [open, setOpen] = useState(false)
   const input = useRef(null)
   const files = note.attachments || []
 
@@ -23,25 +26,32 @@ function NoteFiles({ note }) {
     // estourava o limite do proxy e a barra de progresso ficava sem sentido.
     for (const f of picked) await uploadNoteAttachment(note.id, f)
     setUploading(false)
+    setOpen(true) // mostra o resultado do envio
   }
 
   return (
     <div className="note-files">
-      <div className="note-files-head">
-        <h3><Paperclip size={14} /> Arquivos da aula ({files.length})</h3>
+      <div className="note-files-bar" title="Slides, listas de exercícios, códigos — até 25MB por arquivo.">
+        <button
+          className="note-files-toggle"
+          onClick={() => setOpen(o => !o)}
+          disabled={files.length === 0}
+        >
+          <Paperclip size={13} />
+          <span>{files.length ? `Arquivos da aula (${files.length})` : 'Sem arquivos'}</span>
+          {files.length > 0 && <ChevronDown size={13} style={{ transform: open ? 'rotate(180deg)' : 'none' }} />}
+        </button>
         <button
           className="btn-ghost btn-sm"
           onClick={() => input.current?.click()}
           disabled={uploading}
         >
-          <Upload size={14} /> {uploading ? 'Enviando…' : 'Anexar'}
+          <Upload size={13} /> {uploading ? 'Enviando…' : 'Anexar'}
         </button>
         <input ref={input} type="file" multiple hidden onChange={onFiles} />
       </div>
 
-      {files.length === 0 ? (
-        <p className="panel-empty">Slides, listas de exercícios, códigos — até 25MB por arquivo.</p>
-      ) : (
+      {open && files.length > 0 && (
         <ul className="file-list">
           {files.map(att => (
             <li key={att.id}>
@@ -150,18 +160,16 @@ export default function ClassView({ classId }) {
 
   return (
     <div className="view view-wide class-view">
-      <header className="view-head">
-        <div>
-          <button className="btn-back" onClick={() => nav('semester', { semesterId: cls.semesterId })}>
-            <ChevronLeft size={16} /> Voltar à grade
-          </button>
-          <h1><span className="class-dot" style={{ background: cls.color }} /> {cls.name}</h1>
-          <p className="view-sub">
-            {(cls.slots || []).map(s => `${DAYS[s.day]} ${s.start}–${s.end}`).join(' · ')}
-            {cls.professor ? ` · Prof. ${cls.professor}` : ''}
-          </p>
-        </div>
-        <button className="btn-primary" onClick={openNewNote}><Plus size={16} /> Nova anotação</button>
+      <header className="view-head class-head">
+        <button className="btn-back" onClick={() => nav('semester', { semesterId: cls.semesterId })}>
+          <ChevronLeft size={15} /> Grade
+        </button>
+        <h1><span className="class-dot" style={{ background: cls.color }} /> {cls.name}</h1>
+        <p className="view-sub">
+          {(cls.slots || []).map(s => `${DAYS[s.day]} ${s.start}–${s.end}`).join(' · ')}
+          {cls.professor ? ` · Prof. ${cls.professor}` : ''}
+        </p>
+        <button className="btn-primary btn-sm" onClick={openNewNote}><Plus size={15} /> Nova anotação</button>
       </header>
 
       {notes.length === 0 ? (
@@ -175,7 +183,7 @@ export default function ClassView({ classId }) {
       ) : (
         <div className="class-layout">
           <aside className="notes-list panel">
-            <div className="panel-head"><h2>Anotações</h2><small className="panel-sub">{notes.length}</small></div>
+            <div className="notes-list-head">Anotações <span>{notes.length}</span></div>
             <ul>
               {notes.map(n => (
                 <li

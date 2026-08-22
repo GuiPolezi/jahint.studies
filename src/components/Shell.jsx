@@ -142,7 +142,9 @@ export default function Shell() {
         </div>
       </aside>
 
-      <main className="content" ref={contentRef}>
+      {/* content-fill: na página de anotações o painel preenche a viewport
+          (modo documento, só desktop) — mesma condição do sidebar-peek */}
+      <main className={'content' + (sidebarPeek ? ' content-fill' : '')} ref={contentRef}>
         <CurrentView />
       </main>
     </div>
