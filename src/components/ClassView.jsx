@@ -1,80 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronDown, Plus, Trash2, FileText, Clock, Upload, Download, Paperclip } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ChevronLeft, Plus, Trash2, FileText, Clock, Paperclip } from 'lucide-react'
 import { useStore } from '../store/StoreProvider'
-import { Modal, Field, EmptyState, fileIcon } from './ui'
+import { Modal, Field, EmptyState, CollapsibleFiles } from './ui'
 import RichEditor, { useAutosaveContent, SaveStatus } from './RichEditor'
-import { formatBR, todayISO, DAYS, formatBytes } from '../lib/utils'
+import { formatBR, todayISO, DAYS } from '../lib/utils'
 
 // Arquivos da anotação: slides do professor, PDFs de exercício, códigos da
-// aula. Mesma mecânica dos anexos de trabalho — o arquivo vai para o disco do
-// servidor e a anotação guarda só a referência.
+// aula. A barra recolhível é compartilhada com os trabalhos (CollapsibleFiles);
+// o estado reseta por anotação porque o pane é remontado via key.
 function NoteFiles({ note }) {
   const { uploadNoteAttachment, delNoteAttachment, downloadNoteAttachment } = useStore()
-  const [uploading, setUploading] = useState(false)
-  // Recolhido por padrão: uma linha fina que devolve a altura ao editor.
-  // O pane é remontado por anotação (key), então o estado reseta ao trocar.
-  const [open, setOpen] = useState(false)
-  const input = useRef(null)
-  const files = note.attachments || []
-
-  const onFiles = async e => {
-    const picked = [...(e.target.files || [])]
-    e.target.value = ''
-    if (!picked.length) return
-    setUploading(true)
-    // Sequencial de propósito: o upload paralelo de vários arquivos grandes
-    // estourava o limite do proxy e a barra de progresso ficava sem sentido.
-    for (const f of picked) await uploadNoteAttachment(note.id, f)
-    setUploading(false)
-    setOpen(true) // mostra o resultado do envio
-  }
-
   return (
-    <div className="note-files">
-      <div className="note-files-bar" title="Slides, listas de exercícios, códigos — até 25MB por arquivo.">
-        <button
-          className="note-files-toggle"
-          onClick={() => setOpen(o => !o)}
-          disabled={files.length === 0}
-        >
-          <Paperclip size={13} />
-          <span>{files.length ? `Arquivos da aula (${files.length})` : 'Sem arquivos'}</span>
-          {files.length > 0 && <ChevronDown size={13} style={{ transform: open ? 'rotate(180deg)' : 'none' }} />}
-        </button>
-        <button
-          className="btn-ghost btn-sm"
-          onClick={() => input.current?.click()}
-          disabled={uploading}
-        >
-          <Upload size={13} /> {uploading ? 'Enviando…' : 'Anexar'}
-        </button>
-        <input ref={input} type="file" multiple hidden onChange={onFiles} />
-      </div>
-
-      {open && files.length > 0 && (
-        <ul className="file-list">
-          {files.map(att => (
-            <li key={att.id}>
-              <span className="file-icon">{fileIcon(att)}</span>
-              <div className="file-text">
-                <strong>{att.name}</strong>
-                <small>{formatBytes(att.size)}</small>
-              </div>
-              <button
-                className="icon-btn"
-                title="Baixar"
-                onClick={() => downloadNoteAttachment(att)}
-              ><Download size={16} /></button>
-              <button
-                className="icon-btn danger"
-                title="Excluir arquivo"
-                onClick={() => { if (confirm(`Excluir o arquivo "${att.name}"?`)) delNoteAttachment(note.id, att.id) }}
-              ><Trash2 size={16} /></button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <CollapsibleFiles
+      files={note.attachments}
+      label="Arquivos da aula"
+      hint="Slides, listas de exercícios, códigos — até 25MB por arquivo."
+      onUpload={f => uploadNoteAttachment(note.id, f)}
+      onDelete={attId => delNoteAttachment(note.id, attId)}
+      onDownload={downloadNoteAttachment}
+    />
   )
 }
 

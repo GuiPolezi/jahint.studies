@@ -55,10 +55,10 @@ export default function Shell() {
 
   const currentNav = NAV.find(item => item.match.includes(route.view)) || NAV[0]
 
-  // Página de anotações de aula: no desktop o menu recolhe para a lateral,
-  // liberando a largura toda para o editor. Ele volta ao pousar o mouse na
-  // borda esquerda (faixa .sidebar-hotzone) ou ao focar a navegação via teclado.
-  const sidebarPeek = route.view === 'class'
+  // Páginas de anotação (aula e trabalho): no desktop o menu recolhe para a
+  // lateral, liberando a largura toda para o editor. Ele volta ao pousar o
+  // mouse na borda esquerda (faixa .sidebar-hotzone) ou ao focar via teclado.
+  const sidebarPeek = route.view === 'class' || route.view === 'work'
 
   const avatar = user.avatar
     ? <img src={user.avatar} alt="" className="user-avatar" />

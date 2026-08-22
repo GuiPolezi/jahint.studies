@@ -1,7 +1,9 @@
+import { useRef, useState } from 'react'
 import {
   X, File, FileText, FileArchive, FileCode, FileImage,
+  Paperclip, ChevronDown, Upload, Download, Trash2,
 } from 'lucide-react'
-import { daysUntil, urgency, urgencyLabel, CLASS_COLORS } from '../lib/utils'
+import { daysUntil, urgency, urgencyLabel, CLASS_COLORS, formatBytes } from '../lib/utils'
 
 export function Modal({ title, onClose, children, width = 540 }) {
   return (
@@ -59,6 +61,76 @@ export function fileIcon(att, size = 18) {
   if (['js', 'jsx', 'ts', 'py', 'java', 'c', 'cpp', 'cs', 'html', 'css', 'json', 'sql'].includes(ext)) return <FileCode size={size} />
   if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return <FileImage size={size} />
   return <File size={size} />
+}
+
+// Barra de arquivos recolhível: uma linha fina que expande para a lista.
+// Compartilhada pelos anexos de trabalho e de anotação de aula, para os
+// dois nunca divergirem. Recebe callbacks — o dono (note/work) fica no pai.
+export function CollapsibleFiles({ files = [], onUpload, onDelete, onDownload, label, emptyLabel = 'Sem arquivos', hint }) {
+  const [open, setOpen] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const input = useRef(null)
+
+  const onFiles = async e => {
+    const picked = [...(e.target.files || [])]
+    e.target.value = ''
+    if (!picked.length) return
+    setUploading(true)
+    // Sequencial de propósito: o upload paralelo de vários arquivos grandes
+    // estourava o limite do proxy e a barra de progresso ficava sem sentido.
+    for (const f of picked) await onUpload(f)
+    setUploading(false)
+    setOpen(true) // mostra o resultado do envio
+  }
+
+  return (
+    <div className="note-files">
+      <div className="note-files-bar" title={hint}>
+        <button
+          className="note-files-toggle"
+          onClick={() => setOpen(o => !o)}
+          disabled={files.length === 0}
+          aria-expanded={open}
+        >
+          <Paperclip size={13} />
+          <span>{files.length ? `${label} (${files.length})` : emptyLabel}</span>
+          {files.length > 0 && <ChevronDown size={13} style={{ transform: open ? 'rotate(180deg)' : 'none' }} />}
+        </button>
+        <button
+          className="btn-ghost btn-sm"
+          onClick={() => input.current?.click()}
+          disabled={uploading}
+        >
+          <Upload size={13} /> {uploading ? 'Enviando…' : 'Anexar'}
+        </button>
+        <input ref={input} type="file" multiple hidden onChange={onFiles} />
+      </div>
+
+      {open && files.length > 0 && (
+        <ul className="file-list">
+          {files.map(att => (
+            <li key={att.id}>
+              <span className="file-icon">{fileIcon(att)}</span>
+              <div className="file-text">
+                <strong>{att.name}</strong>
+                <small>{formatBytes(att.size)}</small>
+              </div>
+              <button
+                className="icon-btn"
+                title="Baixar"
+                onClick={() => onDownload(att)}
+              ><Download size={16} /></button>
+              <button
+                className="icon-btn danger"
+                title="Excluir arquivo"
+                onClick={() => { if (confirm(`Excluir o arquivo "${att.name}"?`)) onDelete(att.id) }}
+              ><Trash2 size={16} /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 export function EmptyState({ icon: Icon, title, text, children }) {
