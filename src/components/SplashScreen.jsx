@@ -1,116 +1,133 @@
-import { useEffect, useRef } from 'react'
-import { gsap } from 'gsap'
+import { useEffect, useRef, useState } from 'react'
 
-// Splash de carregamento — "jahint.studies" (Bukhari Script) sendo escrito com
-// GSAP; sai com transição suave quando o app termina de verificar a sessão.
+// Splash de carregamento — xícara de vidro Frutiger Aero enchendo de café.
+// Sem GSAP: o progresso é um tick leve de JS e todo o movimento (ondas,
+// vapor, bolhas, fade de saída) vive em CSS com transform/opacity.
+//
+// Integração com o App: o café sobe enquanto a sessão é verificada e
+// ESTACIONA em ~88% se o servidor demorar — só completa os 100% quando
+// `ready` chega. Ao terminar: vapor + brilho, uma pausa, fade e onFinish().
+
+const BRAND = 'Jahint.Studies'
+
+const PHASES = [
+  { at: 0, text: 'Moendo os grãos…' },
+  { at: 30, text: 'Passando o café…' },
+  { at: 65, text: 'Quase transbordando…' },
+  { at: 100, text: 'Pronto. Bom café!' },
+]
+
+// Onda da superfície do café (duas cópias defasadas dão profundidade)
+const WAVE_FRONT = 'M0 7 Q 18.75 3, 37.5 7 T 75 7 T 112.5 7 T 150 7 T 187.5 7 T 225 7 T 262.5 7 T 300 7 V 14 H 0 Z'
+const WAVE_BACK = 'M0 7 Q 18.75 2, 37.5 7 T 75 7 T 112.5 7 T 150 7 T 187.5 7 T 225 7 T 262.5 7 T 300 7 V 14 H 0 Z'
+
 export default function SplashScreen({ ready, onFinish }) {
-  const rootRef = useRef(null)
+  const [progress, setProgress] = useState(0)
+  const [leaving, setLeaving] = useState(false)
   const readyRef = useRef(ready)
-  const introDoneRef = useRef(false)
-  const exitStartedRef = useRef(false)
   const onFinishRef = useRef(onFinish)
 
+  useEffect(() => { readyRef.current = ready }, [ready])
   useEffect(() => { onFinishRef.current = onFinish }, [onFinish])
 
-  const startExit = () => {
-    if (exitStartedRef.current) return
-    exitStartedRef.current = true
-    const root = rootRef.current
-    if (!root) { onFinishRef.current?.(); return }
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    gsap.timeline({ onComplete: () => onFinishRef.current?.() })
-      .to(root.querySelector('.splash-center'), {
-        autoAlpha: 0,
-        y: reduce ? 0 : -18,
-        scale: reduce ? 1 : 1.03,
-        duration: reduce ? 0.25 : 0.55,
-        ease: 'power2.in',
-      }, 0)
-      .to(root, { autoAlpha: 0, duration: reduce ? 0.25 : 0.7, ease: 'power2.inOut' }, reduce ? 0 : 0.3)
-  }
+  const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+  // Loop de progresso: passos aleatórios dão a sensação orgânica de preparo
   useEffect(() => {
-    readyRef.current = ready
-    if (ready && introDoneRef.current) startExit()
-  }, [ready])
-
-  useEffect(() => {
-    const root = rootRef.current
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduce = reduceMotion()
+    let timer
     let cancelled = false
+    let p = 0
 
-    const wrap = root.querySelector('.splash-word-mask')
-    const shine = root.querySelector('.splash-shine')
-    const dots = root.querySelectorAll('.splash-dot')
-
-    gsap.set(shine, { backgroundPositionX: '160%' })
-
-    if (!reduce) {
-      gsap.to(dots, {
-        opacity: 0.25, y: -3,
-        duration: 0.45, ease: 'sine.inOut',
-        yoyo: true, repeat: -1, stagger: 0.15,
-      })
-    }
-
-    const onIntroDone = () => {
-      introDoneRef.current = true
-      if (readyRef.current) startExit()
-    }
-
-    const play = () => {
+    const tick = () => {
       if (cancelled) return
-      // Com a escrita completa a máscara é identidade — removê-la elimina o
-      // leve retângulo fantasma que o Chromium deixa em elementos mascarados.
-      const dropMask = { webkitMaskImage: 'none', maskImage: 'none' }
-      if (reduce) {
-        gsap.set(wrap, { '--reveal': '118%', ...dropMask })
-        onIntroDone()
-        return
+      if (readyRef.current) {
+        p = Math.min(100, p + (reduce ? 40 : 6 + Math.random() * 9))
+      } else {
+        const step = p < 70 ? 2 + Math.random() * 5 : 0.5 + Math.random() * 1.5
+        p = Math.min(88, p + step) // espera a sessão resolver
       }
-      gsap.timeline({ onComplete: onIntroDone })
-        .to(wrap, { '--reveal': '118%', duration: 2.2, ease: 'power1.inOut' }, 0.2)
-        .set(wrap, dropMask)
-        .to(shine, { backgroundPositionX: '-60%', duration: 1.0, ease: 'power2.inOut' }, '-=0.1')
+      setProgress(p)
+      if (p >= 100) return
+      timer = setTimeout(tick, reduce ? 60 : 120 + Math.random() * 240)
     }
+    tick()
 
-    // Espera a fonte carregar para não animar com a fonte de fallback
-    if (document.fonts?.load) {
-      Promise.race([
-        document.fonts.load('400 96px "Bukhari Script"'),
-        new Promise((r) => setTimeout(r, 1500)),
-      ]).then(play, play)
-    } else {
-      play()
-    }
-
-    return () => {
-      cancelled = true
-      gsap.killTweensOf([root, root.querySelector('.splash-center'), wrap, shine, ...dots])
-    }
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [])
 
+  const done = progress >= 100
+
+  // Café pronto: segura um instante para o vapor aparecer, depois inicia o fade
+  useEffect(() => {
+    if (!done) return
+    const t = setTimeout(() => setLeaving(true), reduceMotion() ? 250 : 950)
+    return () => clearTimeout(t)
+  }, [done])
+
+  // Desmonta só depois do fade do CSS (0.65s / 0.25s com movimento reduzido)
+  useEffect(() => {
+    if (!leaving) return
+    const t = setTimeout(() => onFinishRef.current?.(), reduceMotion() ? 300 : 700)
+    return () => clearTimeout(t)
+  }, [leaving])
+
+  const rounded = Math.floor(progress)
+  const label = [...PHASES].reverse().find(ph => rounded >= ph.at).text
+
   return (
-    <div className="splash" ref={rootRef} role="status" aria-label="Carregando">
-      <div className="bg-aero">
-        <div className="orb orb-1" />
-        <div className="orb orb-2" />
-        <div className="orb orb-3" />
-        <div className="orb orb-4" />
-        <div className="orb orb-5" />
+    <div
+      className={'splash' + (done ? ' done' : '') + (leaving ? ' leaving' : '')}
+      role="status"
+      aria-label="Carregando"
+    >
+      {/* bolhas de fundo: só transform/opacity — baratas para a GPU */}
+      <div className="splash-bubbles" aria-hidden="true">
+        <i /><i /><i /><i /><i /><i />
       </div>
-      <div className="splash-center">
-        <div className="splash-word-wrap">
-          <div className="splash-word-mask">
-            <span className="splash-word">Jahint.studies</span>
-            <span className="splash-shine" aria-hidden="true">Jahint.studies</span>
+
+      {/* cartão de vidro: o ÚNICO backdrop-filter da splash */}
+      <div className="splash-card">
+        <div className="splash-scene" aria-hidden="true">
+          <div className="splash-steam"><span /><span /><span /></div>
+          <div className="splash-handle" />
+          <div className="splash-cup">
+            <div
+              className={'splash-coffee' + (progress > 3 ? ' visible' : '')}
+              style={{ height: `${progress * 0.82}%` }}
+            >
+              <div className="splash-surface">
+                <svg className="back" viewBox="0 0 300 14" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d={WAVE_BACK} fill="#7a4e2c" />
+                </svg>
+                <svg viewBox="0 0 300 14" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d={WAVE_FRONT} fill="#d9ac74" />
+                </svg>
+              </div>
+            </div>
           </div>
+          <div className="splash-saucer" />
         </div>
-        <div className="splash-status">
-          <span>Carregando</span>
-          <span className="splash-dot" />
-          <span className="splash-dot" />
-          <span className="splash-dot" />
+
+        <div className="splash-status-block">
+          <div className="splash-brand" aria-label={BRAND}>
+            {[...BRAND].map((ch, i, arr) => {
+              const threshold = 8 + (i / (arr.length - 1)) * 84
+              return (
+                <span
+                  key={i}
+                  aria-hidden="true"
+                  className={(progress >= threshold ? 'lit' : '') + (ch === '.' ? ' dot' : '')}
+                >
+                  {ch}
+                </span>
+              )
+            })}
+          </div>
+          {/* aria-hidden: role="status" anunciaria cada tick do número no leitor
+              de tela; as frases de fase (4 mudanças) bastam como feedback */}
+          <div className="splash-percent" aria-hidden="true">{rounded}%</div>
+          <div className="splash-label">{label}</div>
         </div>
       </div>
     </div>

@@ -935,78 +935,254 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(80, 130, 180, 0.55); border: 2px solid transparent; background-clip: content-box; }
 
-/* ---------- splash de carregamento ---------- */
-@font-face {
-  font-family: 'Bukhari Script';
-  src: url('/fonts/BukhariScript-Regular.woff') format('woff');
-  font-weight: 400;
-  font-style: normal;
-  font-display: block; /* a splash espera a fonte; evita piscar com a fallback */
-}
-
+/* ---------- splash de carregamento: café Frutiger Aero ----------
+   Xícara de vidro enchendo de café enquanto a sessão é verificada.
+   Regras de performance: bolhas e vapor animam SÓ transform/opacity;
+   o único backdrop-filter é o do cartão; xícara/pires são gradientes. */
 .splash {
+  --splash-ink: #0e3a5c;
+  --splash-coffee: rgba(74, 47, 27, 0.92);
+  --splash-coffee-light: rgba(122, 78, 44, 0.88);
+  --splash-crema: #d9ac74;
+  --splash-edge: rgba(255, 255, 255, 0.75);
   position: fixed; inset: 0; z-index: 999;
   display: grid; place-items: center;
-  background: #cfeaff;
+  color: var(--splash-ink);
+  overflow: hidden;
+  /* céu aero: degradê + dois brilhos radiais suaves */
+  background:
+    radial-gradient(ellipse 60% 45% at 22% 18%, rgba(255, 255, 255, 0.55), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 80% 85%, rgba(120, 220, 190, 0.28), transparent 70%),
+    linear-gradient(to bottom, #d6f1ff 0%, #9fdcff 48%, #5fb8ee 100%);
+  transition: opacity 0.65s ease;
 }
-.splash-center {
-  display: grid; justify-items: center; gap: 26px;
-  padding: 24px;
+.splash.leaving { opacity: 0; pointer-events: none; }
+
+/* ---------- bolhas de fundo ---------- */
+.splash-bubbles { position: absolute; inset: 0; pointer-events: none; }
+.splash-bubbles i {
+  position: absolute;
+  bottom: -60px;
+  border-radius: 50%;
+  /* esfera vidrada: highlight deslocado, típico do Frutiger Aero */
+  background: radial-gradient(circle at 32% 28%, rgba(255,255,255,0.9), rgba(255,255,255,0.15) 42%, rgba(255,255,255,0.03) 70%);
+  box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.5);
+  animation: splash-float linear infinite;
+  will-change: transform;
 }
-.splash-word-wrap {
-  /* o glow fica FORA do elemento mascarado: aplicado depois da máscara, ele
-     nasce só da parte já escrita e nunca é cortado pela caixa da máscara
-     (filter dentro de elemento mascarado gera recortes/retângulos no Chromium) */
-  filter: drop-shadow(0 12px 26px rgba(10, 132, 255, 0.32)) drop-shadow(0 1px 0 rgba(255, 255, 255, 0.75));
+.splash-bubbles i:nth-child(1) { left: 8%;  width: 26px; height: 26px; animation-duration: 14s; }
+.splash-bubbles i:nth-child(2) { left: 22%; width: 12px; height: 12px; animation-duration: 10s; animation-delay: -4s; }
+.splash-bubbles i:nth-child(3) { left: 45%; width: 18px; height: 18px; animation-duration: 16s; animation-delay: -9s; }
+.splash-bubbles i:nth-child(4) { left: 68%; width: 30px; height: 30px; animation-duration: 12s; animation-delay: -2s; }
+.splash-bubbles i:nth-child(5) { left: 82%; width: 14px; height: 14px; animation-duration: 9s;  animation-delay: -6s; }
+.splash-bubbles i:nth-child(6) { left: 92%; width: 20px; height: 20px; animation-duration: 15s; animation-delay: -11s; }
+@keyframes splash-float {
+  from { transform: translateY(0); opacity: 0; }
+  8%   { opacity: 0.85; }
+  92%  { opacity: 0.85; }
+  to   { transform: translateY(-110vh); opacity: 0; }
 }
-.splash-word-mask {
+
+/* ---------- cartão de vidro ---------- */
+.splash-card {
   position: relative;
-  /* --reveal é animado pelo GSAP (0% → 118%): máscara de borda suave que
-     "escreve" a palavra da esquerda para a direita */
-  --reveal: 0%;
-  -webkit-mask-image: linear-gradient(105deg, #000 calc(var(--reveal) - 16%), transparent var(--reveal));
-  mask-image: linear-gradient(105deg, #000 calc(var(--reveal) - 16%), transparent var(--reveal));
+  display: flex; flex-direction: column; align-items: center; gap: 1.8rem;
+  padding: 3rem 3.5rem 2.6rem;
+  border-radius: 34px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.34), rgba(255,255,255,0.10));
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid var(--splash-edge);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.25),
+    0 24px 48px -20px rgba(14, 58, 92, 0.35);
+  user-select: none;
+  transition: opacity 0.55s ease, transform 0.55s ease;
 }
-.splash-word,
-.splash-shine {
-  display: block;
-  font-family: 'Bukhari Script', 'Segoe Script', cursive;
-  font-size: clamp(40px, 9vw, 92px);
-  font-weight: 400;
-  line-height: 1.4;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  padding: 0.15em 0.4em;
-}
-.splash-word {
-  background: linear-gradient(180deg, #56c8ff 0%, var(--accent) 55%, var(--accent-deep) 100%);
-  -webkit-background-clip: text; background-clip: text;
-  color: transparent;
-}
-.splash-shine {
-  /* mesma palavra por cima, recortada no texto: vira o brilho que varre
-     as letras ao fim da escrita (backgroundPositionX animado no GSAP) */
-  position: absolute; inset: 0;
-  color: transparent;
-  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.95) 50%, transparent 60%);
-  background-size: 260% 100%;
-  background-repeat: no-repeat;
-  -webkit-background-clip: text; background-clip: text;
+.splash.leaving .splash-card { opacity: 0; transform: translateY(-16px) scale(1.02); }
+/* reflexo especular curvo no topo do cartão */
+.splash-card::before {
+  content: '';
+  position: absolute;
+  top: 5px; left: 14px; right: 14px;
+  height: 42%;
+  border-radius: 28px 28px 60% 60%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
   pointer-events: none;
 }
-.splash-status {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 9px 18px; border-radius: 999px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  color: var(--ink-soft);
-  font-size: 13px; font-weight: 600; letter-spacing: 0.2px;
+
+.splash-scene { position: relative; width: 220px; height: 236px; }
+
+/* ---------- xícara de vidro (gradientes, sem filtros) ---------- */
+.splash-cup {
+  position: absolute;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  width: 150px; height: 118px;
+  border-radius: 12px 12px 70px 70px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.30), rgba(255,255,255,0.08) 55%, rgba(255,255,255,0.18));
+  border: 1.5px solid var(--splash-edge);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.7),
+    inset 0 -10px 16px -10px rgba(14, 58, 92, 0.25),
+    0 16px 26px -14px rgba(14, 58, 92, 0.45);
+  overflow: hidden;
 }
-.splash-dot {
-  width: 4px; height: 4px; border-radius: 50%;
-  background: var(--accent);
+/* reflexo vertical curvo na parede do copo */
+.splash-cup::after {
+  content: '';
+  position: absolute;
+  top: 8px; left: 12px;
+  width: 16px; height: 74%;
+  border-radius: 12px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.05));
+  transform: rotate(3deg);
+  pointer-events: none;
+  z-index: 3;
+}
+.splash-handle {
+  position: absolute;
+  bottom: 76px; left: calc(50% + 68px);
+  width: 44px; height: 52px;
+  border: 10px solid rgba(255, 255, 255, 0.45);
+  border-left: none;
+  border-radius: 0 26px 26px 0;
+  box-shadow: inset -2px 0 2px rgba(255, 255, 255, 0.8), 2px 2px 6px -2px rgba(14, 58, 92, 0.3);
+}
+.splash-saucer {
+  position: absolute;
+  bottom: 6px; left: 50%;
+  transform: translateX(-50%);
+  width: 198px; height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.15));
+  border: 1px solid var(--splash-edge);
+  box-shadow: 0 10px 16px -8px rgba(14, 58, 92, 0.4);
+}
+
+/* ---------- café (altura vem inline do React) ---------- */
+.splash-coffee {
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 100%;
+  background: linear-gradient(to bottom, var(--splash-coffee-light), var(--splash-coffee) 55%);
+  transition: height 0.35s cubic-bezier(0.33, 1, 0.68, 1);
+}
+.splash-surface {
+  position: absolute;
+  top: -10px; left: 0;
+  width: 100%; height: 14px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.splash-coffee.visible .splash-surface { opacity: 1; }
+.splash-surface svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 300px; height: 14px;
+  display: block;
+  animation: splash-drift 3s linear infinite;
+  will-change: transform;
+}
+.splash-surface svg.back {
+  animation-duration: 4.4s;
+  animation-direction: reverse;
+  opacity: 0.7;
+}
+@keyframes splash-drift {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-150px); }
+}
+/* café pronto: as ondas acalmam */
+.splash.done .splash-surface svg { animation-duration: 7s; }
+.splash.done .splash-surface svg.back { animation-duration: 10s; }
+
+/* ---------- vapor ---------- */
+.splash-steam {
+  position: absolute;
+  top: 26px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 16px;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.splash.done .splash-steam { opacity: 1; }
+.splash-steam span {
+  display: block;
+  width: 3px; height: 42px;
+  border-radius: 3px;
+  background: linear-gradient(to top, transparent, rgba(255, 255, 255, 0.9), transparent);
+  animation: splash-rise 2.4s ease-in-out infinite;
+}
+.splash-steam span:nth-child(2) { animation-delay: 0.5s; height: 52px; }
+.splash-steam span:nth-child(3) { animation-delay: 1s; }
+@keyframes splash-rise {
+  0%   { transform: translateY(6px) scaleY(0.85); opacity: 0; }
+  35%  { opacity: 1; }
+  100% { transform: translateY(-14px) scaleY(1.1); opacity: 0; }
+}
+
+/* ---------- textos ---------- */
+.splash-status-block {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; gap: 0.55rem;
+  text-align: center;
+}
+.splash-brand {
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 10px rgba(14, 58, 92, 0.45);
+  transition: letter-spacing 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.splash.done .splash-brand { letter-spacing: 0.16em; }
+.splash-brand span {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(5px);
+  transform: translateY(8px);
+  transition:
+    opacity 0.7s ease,
+    filter 0.7s ease,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.splash-brand span.lit { opacity: 1; filter: blur(0); transform: translateY(0); }
+.splash-brand span.dot { color: var(--splash-crema); }
+.splash-percent {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+.splash-label {
+  font-size: 0.9rem;
+  font-style: italic;
+  opacity: 0.65;
+  min-height: 1.4em;
+}
+
+/* ---------- telas estreitas e movimento reduzido ---------- */
+@media (max-width: 420px) {
+  .splash-card { padding: 2.2rem 1.6rem 2rem; border-radius: 26px; }
+  .splash-brand { font-size: 1.45rem; }
+}
+@media (max-width: 900px) {
+  /* mesmo racional do resto do app: blur pesado custa FPS no celular */
+  .splash-card {
+    backdrop-filter: blur(12px) saturate(1.35);
+    -webkit-backdrop-filter: blur(12px) saturate(1.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .splash-surface svg, .splash-steam span, .splash-bubbles i { animation: none; }
+  .splash-coffee { transition: none; }
+  .splash, .splash.leaving .splash-card { transition: opacity 0.25s ease; }
+  .splash-brand,
+  .splash-brand span { transition: opacity 0.3s ease; filter: none; transform: none; }
 }
 
 /* ---------- responsivo ----------
