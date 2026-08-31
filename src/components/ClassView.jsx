@@ -1,71 +1,60 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, Plus, Trash2, FileText, Clock, Paperclip } from 'lucide-react'
+import {
+  ChevronLeft, Plus, Trash2, FileText, Clock, Paperclip, MoreHorizontal,
+  FileDown, Share2, Briefcase, LayoutDashboard,
+} from 'lucide-react'
 import { useStore } from '../store/StoreProvider'
-import { Modal, Field, EmptyState, CollapsibleFiles } from './ui'
+import { Modal, Field, EmptyState, FilesArea } from './ui'
 import RichEditor, { useAutosaveContent, SaveStatus } from './RichEditor'
 import { formatBR, todayISO, DAYS } from '../lib/utils'
 
-// Arquivos da anotação: slides do professor, PDFs de exercício, códigos da
-// aula. A barra recolhível é compartilhada com os trabalhos (CollapsibleFiles);
-// o estado reseta por anotação porque o pane é remontado via key.
-function NoteFiles({ note }) {
-  const { uploadNoteAttachment, delNoteAttachment, downloadNoteAttachment } = useStore()
-  return (
-    <CollapsibleFiles
-      files={note.attachments}
-      label="Arquivos da aula"
-      hint="Slides, listas de exercícios, códigos — até 25MB por arquivo."
-      onUpload={f => uploadNoteAttachment(note.id, f)}
-      onDelete={attId => delNoteAttachment(note.id, attId)}
-      onDownload={downloadNoteAttachment}
-    />
-  )
-}
-
-// Painel do editor — remontado por anotação (key) para isolar carregamento/salvamento
-function NoteEditorPane({ note }) {
-  const { updNote, delNote } = useStore()
+// Painel do editor — remontado por anotação (key) para isolar carregamento/
+// salvamento. clsName alimenta o cabeçalho que só existe na impressão.
+function NoteEditorPane({ note, clsName }) {
+  const { updNote } = useStore()
   const { initial, status, onChange } = useAutosaveContent('note', note.id)
 
   return (
     <div className="note-editor-pane">
-      <div className="note-editor-head">
-        <input
-          className="note-title-input"
-          value={note.title}
-          onChange={e => updNote(note.id, { title: e.target.value })}
-          placeholder="Título da anotação"
-        />
+      {/* Linha discreta no topo do documento: título (espelho do topbar,
+          que é quem edita) + data editável + estado do salvamento */}
+      <div className="note-doc-head">
+        <span className="note-doc-title">{note.title}</span>
+        <span className="note-doc-sep">—</span>
         <input
           type="date"
-          className="note-date-input"
+          className="note-date-input subtle"
           value={note.date || ''}
           onChange={e => updNote(note.id, { date: e.target.value })}
           title="Data da aula"
         />
         <SaveStatus status={status} />
-        <button
-          className="icon-btn danger"
-          title="Excluir anotação"
-          onClick={() => { if (confirm(`Excluir a anotação "${note.title}" e seus arquivos?`)) delNote(note.id) }}
-        ><Trash2 size={16} /></button>
+      </div>
+
+      {/* Só aparece no papel (styles.print.css): identifica o documento */}
+      <div className="print-head">
+        <h1>{note.title}</h1>
+        <p>{clsName}{note.date ? ` — ${formatBR(note.date)}` : ''}</p>
       </div>
 
       {initial === undefined
         ? <div className="editor-loading">Carregando anotação…</div>
         : <RichEditor initial={initial} onChange={onChange} />}
-
-      <NoteFiles note={note} />
     </div>
   )
 }
 
 export default function ClassView({ classId }) {
-  const { data, nav, addNote } = useStore()
+  const {
+    data, nav, addNote, updNote, delNote,
+    uploadNoteAttachment, delNoteAttachment, downloadNoteAttachment,
+  } = useStore()
   const [selId, setSelId] = useState(null)
   const [modal, setModal] = useState(false)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(todayISO())
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [filesOpen, setFilesOpen] = useState(false)
 
   const cls = data.classes.find(c => c.id === classId)
   const notes = data.notes
@@ -102,33 +91,112 @@ export default function ClassView({ classId }) {
     setModal(false)
   }
 
+  const deleteSelected = () => {
+    if (!selected) return
+    if (confirm(`Excluir a anotação "${selected.title}" e seus arquivos?`)) delNote(selected.id)
+  }
+
+  // Isolada de propósito: trocar a estratégia (ex.: PDF gerado no servidor)
+  // não toca no menu. A folha styles.print.css transforma a página no documento.
+  const exportNotePdf = () => {
+    setMenuOpen(false)
+    window.print()
+  }
+
+  // Compartilha um resumo da anotação: nativo no celular, cópia no desktop.
+  // (Sem link direto possível: a navegação do app vive em memória, não em URL.)
+  const shareNote = async () => {
+    setMenuOpen(false)
+    if (!selected) return
+    const text = `${cls.name} — ${selected.title}${selected.date ? ` (${formatBR(selected.date)})` : ''}`
+    if (navigator.share) {
+      try { await navigator.share({ title: selected.title, text }) } catch { /* usuário cancelou */ }
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(text)
+      alert('Resumo copiado para a área de transferência.')
+    } catch {
+      alert('Não foi possível compartilhar neste navegador.')
+    }
+  }
+
+  const attachCount = selected?.attachments?.length || 0
+
   return (
     <div className="view view-wide class-view">
-      <header className="view-head class-head">
+      {/* Topbar flutuante: Voltar · título da anotação (editável) · ações.
+          O grid usa as mesmas colunas do .class-layout, então o título
+          nasce alinhado sobre a coluna do editor. */}
+      <header className="class-topbar">
         <button className="btn-back" onClick={() => nav('semester', { semesterId: cls.semesterId })}>
-          <ChevronLeft size={15} /> Grade
+          <ChevronLeft size={15} /> Voltar
         </button>
-        <h1><span className="class-dot" style={{ background: cls.color }} /> {cls.name}</h1>
-        <p className="view-sub">
-          {(cls.slots || []).map(s => `${DAYS[s.day]} ${s.start}–${s.end}`).join(' · ')}
-          {cls.professor ? ` · Prof. ${cls.professor}` : ''}
-        </p>
-        <button className="btn-primary btn-sm" onClick={openNewNote}><Plus size={15} /> Nova anotação</button>
+
+        {selected ? (
+          <input
+            className="class-note-title"
+            value={selected.title}
+            onChange={e => updNote(selected.id, { title: e.target.value })}
+            placeholder="Título da anotação"
+          />
+        ) : (
+          <h1 className="class-note-title as-heading">{cls.name}</h1>
+        )}
+
+        {selected && (
+          <div className="class-topbar-actions">
+            <button className="btn-danger btn-sm" onClick={deleteSelected}>
+              <Trash2 size={14} /> Excluir
+            </button>
+            <span className="menu-wrap">
+              <button
+                className="dots-btn"
+                onClick={() => setMenuOpen(o => !o)}
+                title="Mais ações"
+                aria-expanded={menuOpen}
+              >
+                <MoreHorizontal size={18} />
+              </button>
+              {menuOpen && (
+                <>
+                  <div className="pop-backdrop" onClick={() => setMenuOpen(false)} />
+                  <div className="popover class-menu">
+                    <button className="tb-menu-item" onClick={exportNotePdf}>
+                      <FileDown size={15} /> Exportar PDF
+                    </button>
+                    <button className="tb-menu-item" onClick={shareNote}>
+                      <Share2 size={15} /> Compartilhar
+                    </button>
+                    <button className="tb-menu-item" onClick={() => { setMenuOpen(false); setFilesOpen(true) }}>
+                      <Paperclip size={15} /> Arquivos{attachCount > 0 ? ` (${attachCount})` : ''}
+                    </button>
+                  </div>
+                </>
+              )}
+            </span>
+          </div>
+        )}
       </header>
 
-      {notes.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="Nenhuma anotação ainda"
-          text={`Crie sua primeira anotação desta matéria — ex.: "Aula 1 — ${formatBR(todayISO())}".`}
-        >
-          <button className="btn-primary" onClick={openNewNote}><Plus size={16} /> Criar anotação</button>
-        </EmptyState>
-      ) : (
-        <div className="class-layout">
-          <aside className="notes-list panel">
+      <div className="class-layout">
+        {/* Coluna esquerda: identidade da matéria + anotações + atalhos */}
+        <div className="class-side">
+          <aside className="panel class-side-panel">
+            <span className="class-accent-bar" style={{ background: cls.color }} />
+            <h2 className="class-side-name">{cls.name}</h2>
+            <div className="class-side-meta">
+              {cls.professor && <span>Prof. {cls.professor}</span>}
+              {(cls.slots || []).length > 0 && (
+                <span>{cls.slots.map(s => `${DAYS[s.day]} ${s.start}–${s.end}`).join(' · ')}</span>
+              )}
+            </div>
+
             <div className="notes-list-head">Anotações <span>{notes.length}</span></div>
-            <ul>
+            <button className="note-add-btn" onClick={openNewNote}>
+              <Plus size={15} /> Nova Anotação
+            </button>
+            <ul className="notes-list">
               {notes.map(n => (
                 <li
                   key={n.id}
@@ -149,13 +217,40 @@ export default function ClassView({ classId }) {
             </ul>
           </aside>
 
-          <section className="panel note-editor-panel">
-            {selected
-              ? <NoteEditorPane key={selected.id} note={selected} />
-              : <p className="panel-empty">Selecione uma anotação ao lado.</p>}
-          </section>
+          <div className="class-quicknav">
+            <div className="quicknav-row">
+              <button className="quicknav-btn" onClick={() => nav('works', { semesterId: cls.semesterId })}>
+                <Briefcase size={14} /> Trabalhos
+              </button>
+              <button className="quicknav-btn" onClick={() => nav('exams', { semesterId: cls.semesterId })}>
+                <FileText size={14} /> Provas
+              </button>
+            </div>
+            <button className="quicknav-btn quicknav-wide" onClick={() => nav('dashboard')}>
+              <LayoutDashboard size={14} /> Dashboard
+            </button>
+          </div>
         </div>
-      )}
+
+        {/* Coluna direita: o documento */}
+        <section className="panel note-editor-panel">
+          {selected ? (
+            <NoteEditorPane key={selected.id} note={selected} clsName={cls.name} />
+          ) : notes.length === 0 ? (
+            <EmptyState
+              className="in-panel"
+              icon={FileText}
+              title="Nenhuma anotação ainda"
+              text={`Crie sua primeira anotação desta matéria — ex.: "Aula 1 — ${formatBR(todayISO())}".`}
+            >
+              <button className="btn-primary" onClick={openNewNote}><Plus size={16} /> Criar anotação</button>
+            </EmptyState>
+          ) : (
+            /* instante entre o render e o guard de seleção escolher a 1ª nota */
+            <p className="panel-empty">Selecione uma anotação ao lado.</p>
+          )}
+        </section>
+      </div>
 
       {modal && (
         <Modal title="Nova anotação" onClose={() => setModal(false)} width={420}>
@@ -171,6 +266,18 @@ export default function ClassView({ classId }) {
               <button type="submit" className="btn-primary">Criar</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {filesOpen && selected && (
+        <Modal title="Arquivos da aula" onClose={() => setFilesOpen(false)} width={520}>
+          <FilesArea
+            files={selected.attachments}
+            hint="Slides, listas de exercícios, códigos — até 25MB por arquivo."
+            onUpload={f => uploadNoteAttachment(selected.id, f)}
+            onDelete={attId => delNoteAttachment(selected.id, attId)}
+            onDownload={downloadNoteAttachment}
+          />
         </Modal>
       )}
     </div>

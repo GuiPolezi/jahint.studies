@@ -224,7 +224,7 @@
   input, select, textarea,
   .field input, .field select, .field textarea,
   .filter-bar select, .slot-row select, .slot-row input,
-  .note-date-input, .member-add input, .tb-select {
+  .note-date-input, .member-add input {
     font-size: 16px;
   }
 
@@ -243,6 +243,9 @@
   .note-files-toggle { min-height: 40px; }
   .work-details-toggle { min-height: 44px; }
   .tb-menu-item { min-height: 44px; font-size: 15px; }
+  .dots-btn { width: 44px; height: 44px; }
+  .note-add-btn { min-height: 44px; }
+  .quicknav-btn { min-height: 44px; }
   /* Campos com altura uniforme: date/time nativos do iOS e do Android
      renderizam com alturas diferentes dos campos de texto comuns. */
   .field input, .field select, .filter-bar select,
@@ -268,6 +271,8 @@
   .years-grid > *,
   .view-head > *,
   .field,
+  .class-side,
+  .class-side-panel,
   .note-editor-panel,
   .note-editor-pane,
   .rich-editor { min-width: 0; }
@@ -382,18 +387,23 @@
   .class-card-actions .icon-btn { width: 34px; height: 34px; }
   .class-card-name { padding-right: 72px; min-height: 30px; }
 
-  /* ---------- aula: anotações ---------- */
-  /* A lista fica acima do editor; sem limite ela empurrava o editor
-     para fora da tela em turmas com muitas anotações. */
-  .notes-list ul { max-height: 34dvh; }
+  /* ---------- aula: anotações (novo layout) ---------- */
+  /* Topbar em duas linhas: [Voltar … Excluir/•••] e o título por inteiro */
+  .class-topbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .class-topbar .btn-back { margin-right: auto; }
+  .class-note-title { flex: 1 1 100%; order: 3; font-size: 19px; padding: 6px 8px; }
+  .class-topbar-actions { display: flex; gap: 8px; }
+
+  /* Empilhamento: cartão da matéria → lista (limitada) → atalhos → editor.
+     Sem limite, a lista empurrava o editor para fora da tela. */
+  .class-side { gap: 8px; }
+  .class-side-panel { padding: 12px; }
+  .notes-list { max-height: 30dvh; }
+  .quicknav-row { grid-template-columns: 1fr 1fr; }
   .note-editor-panel { padding: 12px 12px; }
-  .note-editor-head { gap: 7px; }
+  .note-doc-head { flex-wrap: wrap; }
   .note-title-input { min-width: 0; flex: 1 1 100%; font-size: 17px; }
   .work-title { font-size: 19px; }
-  /* Cabeçalho compacto do desktop volta a quebrar linha no celular */
-  .class-head { row-gap: 6px; }
-  .class-head h1 { white-space: normal; }
-  .class-head .view-sub { flex: 1 1 100%; white-space: normal; overflow: visible; text-overflow: clip; }
   .work-head { row-gap: 6px; }
   .work-head .view-sub { flex: 1 1 100%; }
 
@@ -434,22 +444,34 @@
    5. EDITOR DE TEXTO RICO
    ============================================================ */
 @media (max-width: 900px) {
-  /* ~25 botões em wrap ocupavam meia tela. Vira uma faixa rolável
-     horizontalmente, como nos apps de edição móveis. */
-  .editor-toolbar {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    gap: 3px;
-    padding: 6px 8px;
-    border-radius: 13px;
-  }
-  .editor-toolbar::-webkit-scrollbar { display: none; }
+  /* Alvo de toque nos botões dos menus do editor (bubble e ••• da aula) */
   .tb-btn { width: 34px; height: 34px; flex-shrink: 0; }
   .tb-sep { flex-shrink: 0; margin: 0 3px; }
-  .tb-select { flex-shrink: 0; padding: 6px 8px; }
-  .tb-wrap { flex-shrink: 0; }
+
+  /* Menu "/" vira uma folha presa ao rodapé — junto do teclado, como nos
+     apps móveis. O !important é a única forma CSS-only de vencer o style
+     inline do tippy. Plano B, se algum navegador apresentar glitch de
+     posição: remover este bloco e deixar só
+       .slash-menu { max-width: min(320px, calc(100vw - 24px)); }
+     (ancorado ao cursor, contido na tela pelo flip do popper). */
+  [data-tippy-root]:has(.slash-menu) {
+    position: fixed !important;
+    transform: none !important;
+    left: 12px !important;
+    right: 12px !important;
+    top: auto !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px) !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  [data-tippy-root]:has(.slash-menu) .tippy-box { width: 100%; max-width: none !important; }
+  .slash-menu { width: 100%; min-width: 0; max-height: 38dvh; }
+
+  /* Balão de formatação: quebra linha em vez de estourar a tela */
+  .bubble-menu { max-width: calc(100vw - 24px); }
+  .bubble-row { flex-wrap: wrap; }
+  .bubble-link input { font-size: 16px; } /* anti-zoom iOS */
+  .floating-plus-btn { width: 38px; height: 38px; }
 
   /* Ancorado ao botão, o popover vazava pela borda da tela quando o
      botão estava no fim da faixa. Vira um mini-diálogo centralizado —
@@ -615,7 +637,7 @@
    ============================================================ */
 /* Celular deitado: pouca altura vertical disponível */
 @media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
-  .notes-list ul { max-height: 40vh; }
+  .notes-list { max-height: 40vh; }
   .editor-scroll { min-height: 38vh; }
   .modal { max-height: calc(100svh - 96px); }
   .empty-state { padding: 24px 18px; }

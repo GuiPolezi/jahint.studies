@@ -1,0 +1,62 @@
+/* ============================================================
+   Jahint.Studies — IMPRESSÃO ("Exportar PDF" da anotação)
+   ------------------------------------------------------------
+   Transforma a página da anotação num documento limpo: some o
+   vidro, os menus e a coluna lateral; fica o cabeçalho impresso
+   (.print-head) e o conteúdo do editor, multipágina.
+   ============================================================ */
+
+/* Invisível na tela — só o @media print o revela */
+.print-head { display: none; }
+
+@media print {
+  /* Some tudo que não é o documento */
+  .bg-aero, .sidebar, .sidebar-hotzone, .mobile-topbar, .drawer-backdrop,
+  .class-topbar, .class-side, .note-doc-head, .save-status,
+  [data-tippy-root], .pop-backdrop, .popover, .modal-overlay,
+  .floating-plus-btn, .note-files {
+    display: none !important;
+  }
+
+  /* Destrava a cadeia de rolagem interna do modo documento — sem isso
+     o navegador imprime só a primeira página (o resto fica "rolado") */
+  html, body { height: auto; overflow: visible; background: #fff; }
+  .app { display: block; height: auto; padding: 0; }
+  .content, .content.content-fill,
+  .class-view, .class-layout,
+  .note-editor-panel, .note-editor-pane,
+  .rich-editor, .editor-scroll {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: none !important;
+  }
+  .class-layout { grid-template-columns: 1fr !important; }
+
+  /* Painel vira papel: sem vidro, sem sombra, sem brilho */
+  .note-editor-panel {
+    background: #fff; border: none; box-shadow: none; padding: 0;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  .note-editor-panel::before { display: none; }
+
+  /* Cabeçalho impresso: título + matéria — data */
+  .print-head {
+    display: block !important;
+    margin-bottom: 14pt; padding-bottom: 8pt;
+    border-bottom: 2pt solid #000;
+  }
+  .print-head h1 { font-size: 20pt; margin: 0; letter-spacing: -0.5px; }
+  .print-head p { font-size: 10pt; color: #444; margin: 2pt 0 0; }
+
+  /* Conteúdo em preto sobre branco, largura total do papel */
+  .ProseMirror,
+  .class-view .ProseMirror {
+    max-width: none; color: #000; font-size: 12pt; min-height: 0;
+  }
+  .ProseMirror pre { white-space: pre-wrap; background: #f3f4f6; color: #111; }
+  .ProseMirror img { box-shadow: none; }
+  .ProseMirror blockquote { background: #f3f6fa; }
+}
