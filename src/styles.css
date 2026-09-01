@@ -119,72 +119,13 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 
 .content { flex: 1; overflow-y: auto; overflow-x: hidden; border-radius: var(--radius); scroll-behavior: smooth; }
 
-/* ---------- modo peek: menu recolhido na página de anotações ----------
-   Na tela de anotações (.app.sidebar-peek) o menu desliza para fora e o
-   editor ganha a largura toda. Dois movimentos independentes:
-     · margin-left negativo tira a sidebar do fluxo COM animação — o
-       conteúdo se expande no mesmo compasso em que ela sai;
-     · transform (no hover) a traz de volta POR CIMA do conteúdo, sem
-       reflow — o editor não fica "respirando" a cada passada do mouse.
-   Números: 264 = largura (250) + gap (14). O -14px extra do estado
-   recolhido esconde também a borda e o brilho da sombra.
+/* ---------- modo documento: sem menu lateral na página de anotações ----------
+   Na tela de anotações (.app.sidebar-peek) o menu lateral não existe e o
+   editor ganha a largura toda; a navegação fica com os atalhos da própria
+   página (Voltar, quicknav).
    Só no desktop: abaixo de 901px a gaveta do styles.mobile.css assume. */
 @media (min-width: 901px) {
-  .app.sidebar-peek .sidebar {
-    margin-left: -264px;
-    transform: translateX(-14px);
-    z-index: 45;
-    background: var(--glass-strong); /* mais opaca: vai flutuar sobre texto */
-    transition:
-      margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-      transform 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.28s,
-      box-shadow 0.32s ease 0.28s; /* delay só ao FECHAR: sair com o mouse
-        por um instante não faz o menu fugir no meio de um clique */
-  }
-  .app.sidebar-peek .sidebar-hotzone:hover ~ .sidebar,
-  .app.sidebar-peek .sidebar:hover,
-  .app.sidebar-peek .sidebar:focus-within {
-    transform: translateX(264px); /* devolve à posição natural, sobre o conteúdo */
-    box-shadow: 0 18px 60px rgba(10, 50, 90, 0.35);
-    transition:
-      margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-      transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-      box-shadow 0.32s ease; /* abrir responde na hora, sem delay */
-  }
-
-  /* Faixa invisível que "escuta" o mouse na borda esquerda da tela */
-  .app.sidebar-peek .sidebar-hotzone {
-    position: fixed;
-    top: 0; bottom: 0; left: 0;
-    width: 18px;
-    z-index: 40; /* abaixo da sidebar: aberta, ela cobre a faixa */
-  }
-
-  /* Pista visual discreta de que o menu mora ali — some quando ele abre */
-  .sidebar-handle {
-    position: absolute;
-    top: 50%; left: 5px;
-    transform: translateY(-50%);
-    width: 6px; height: 92px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(86, 200, 255, 0.85), rgba(10, 132, 255, 0.7));
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55), 0 2px 10px rgba(10, 132, 255, 0.35);
-    opacity: 0.75;
-    transition: opacity 0.25s ease;
-  }
-  .app.sidebar-peek .sidebar-hotzone:hover .sidebar-handle,
-  .app.sidebar-peek:has(.sidebar:hover) .sidebar-handle,
-  .app.sidebar-peek:has(.sidebar:focus-within) .sidebar-handle { opacity: 0; }
-}
-
-/* Fora do modo peek (ou no mobile) a faixa não existe visualmente */
-.sidebar-hotzone { display: none; }
-@media (min-width: 901px) {
-  .app.sidebar-peek .sidebar-hotzone { display: block; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .app.sidebar-peek .sidebar { transition: none; }
+  .app.sidebar-peek .sidebar { display: none; }
 }
 
 /* ---------- views ---------- */
@@ -524,9 +465,11 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .dots-btn:hover { background: rgba(11, 37, 64, 0.92); transform: translateY(-1px); }
 .class-menu { min-width: 200px; display: flex; flex-direction: column; gap: 2px; }
 @media (min-width: 901px) {
-  /* Ancorado à direita do botão •••; no mobile o .popover já vira um
-     diálogo centralizado (styles.mobile.css) e este offset não se aplica */
-  .class-menu { left: auto; right: 0; top: 44px; }
+  /* Ancorado à direita do botão ••• para nunca vazar da tela; no mobile o
+     .popover já vira um diálogo centralizado (styles.mobile.css) e este
+     offset não se aplica. O seletor composto vence a regra base .popover
+     (left: 0), que aparece mais adiante na folha com a mesma especificidade. */
+  .popover.class-menu { left: auto; right: 0; top: 44px; }
 }
 
 /* Coluna esquerda: painel da matéria + atalhos pinados abaixo */
@@ -605,16 +548,9 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 
 .note-editor-panel { padding: 14px 16px; }
 .note-editor-pane { display: flex; flex-direction: column; gap: 10px; position: relative; }
-/* Linha discreta no topo do documento: título — data · estado do salvamento.
-   Mesma medida de leitura do .ProseMirror para alinhar com o texto. */
-.note-doc-head {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
-  width: 100%; max-width: 820px; margin: 0 auto;
-  font-size: 12.5px; color: var(--ink-faint); padding: 2px 4px;
-}
-.note-doc-title { font-weight: 700; color: var(--ink-soft); }
-.note-doc-sep { opacity: 0.6; }
-.note-doc-head .save-status { margin-left: auto; }
+/* Estado do salvamento sobre o canto do editor: não participa do fluxo,
+   então o texto começa direto no topo do painel */
+.note-save-float { position: absolute; top: 0; right: 4px; z-index: 5; pointer-events: none; }
 .note-title-input {
   flex: 1; min-width: 200px; font-size: 19px; font-weight: 800; letter-spacing: -0.3px;
   border: 1px solid transparent; border-radius: 12px; padding: 7px 10px; background: transparent; outline: none;
@@ -623,17 +559,6 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .note-title-input:hover { background: rgba(255,255,255,0.45); }
 .note-title-input:focus { background: rgba(255,255,255,0.8); border-color: rgba(10,132,255,0.4); }
 .work-title { font-size: 20px; }
-.note-date-input {
-  padding: 7px 11px; border-radius: 12px; border: 1px solid rgba(160,200,235,0.7);
-  background: rgba(255,255,255,0.7); outline: none; font-size: 13px;
-}
-/* Variante da linha do documento: parece texto, vira campo ao interagir */
-.note-date-input.subtle {
-  padding: 3px 7px; border-radius: 8px; border-color: transparent;
-  background: transparent; font-size: 12.5px; color: var(--ink-faint); cursor: pointer;
-}
-.note-date-input.subtle:hover { background: rgba(255, 255, 255, 0.55); color: var(--ink-soft); }
-.note-date-input.subtle:focus { background: rgba(255, 255, 255, 0.85); border-color: rgba(10, 132, 255, 0.4); }
 .save-status { font-size: 12px; font-weight: 700; white-space: nowrap; }
 .save-status.saving { color: var(--ink-faint); }
 .save-status.saved { color: var(--done); }
@@ -704,12 +629,13 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   .content.content-fill .class-side-panel  { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .content.content-fill .class-quicknav    { flex-shrink: 0; }
   .content.content-fill .notes-list        { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
-  .content.content-fill .note-doc-head     { flex-shrink: 0; }
-  .content.content-fill .note-editor-panel { display: flex; flex-direction: column; min-height: 0; }
+  .content.content-fill .note-editor-panel { display: flex; flex-direction: column; min-height: 0; padding: 12px 10px; }
   .content.content-fill .note-editor-pane  { flex: 1; min-height: 0; }
   .content.content-fill .empty-state.in-panel { margin: auto 0; } /* centra na vertical */
   .content.content-fill .rich-editor       { flex: 1; min-height: 0; }
-  .content.content-fill .editor-scroll     { flex: 1; min-height: 0; max-height: none; padding: 8px 28px 96px; }
+  /* Margens laterais leves: a área de escrita ocupa quase toda a largura do
+     painel. O respiro grande fica só embaixo, para clicar após a última linha. */
+  .content.content-fill .editor-scroll     { flex: 1; min-height: 0; max-height: none; padding: 6px 5px 96px; }
   .content.content-fill .editor-loading    { flex: 1; min-height: 0; }
 
   /* Modo documento também na tela de trabalho (rota 'work') */
@@ -828,7 +754,6 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 
 .ProseMirror { outline: none; font-size: 14.5px; line-height: 1.65; color: var(--ink); min-height: 300px; }
 /* Medida de leitura confortável (~90 caracteres), como no Notion */
-.class-view .ProseMirror, .work-view .ProseMirror { max-width: 820px; margin-left: auto; margin-right: auto; }
 .ProseMirror > * + * { margin-top: 0.55em; }
 .ProseMirror h1 { font-size: 25px; letter-spacing: -0.5px; margin-top: 0.9em; }
 .ProseMirror h2 { font-size: 20px; letter-spacing: -0.3px; margin-top: 0.8em; }

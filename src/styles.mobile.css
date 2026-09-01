@@ -224,7 +224,7 @@
   input, select, textarea,
   .field input, .field select, .field textarea,
   .filter-bar select, .slot-row select, .slot-row input,
-  .note-date-input, .member-add input {
+  .member-add input {
     font-size: 16px;
   }
 
@@ -249,7 +249,7 @@
   /* Campos com altura uniforme: date/time nativos do iOS e do Android
      renderizam com alturas diferentes dos campos de texto comuns. */
   .field input, .field select, .filter-bar select,
-  .note-date-input, .member-add input,
+  .member-add input,
   .slot-row select, .slot-row input { min-height: 44px; }
 
   /* ---------- contenção de largura ----------
@@ -318,7 +318,6 @@
     margin-left: auto;
   }
 
-  .note-date-input { flex: 1 1 140px; min-width: 0; }
   .slot-row input[type='time'] { flex: 1 1 0; min-width: 0; }
 
   /* Painéis mais enxutos para ganhar largura útil */
@@ -401,7 +400,6 @@
   .notes-list { max-height: 30dvh; }
   .quicknav-row { grid-template-columns: 1fr 1fr; }
   .note-editor-panel { padding: 12px 12px; }
-  .note-doc-head { flex-wrap: wrap; }
   .note-title-input { min-width: 0; flex: 1 1 100%; font-size: 17px; }
   .work-title { font-size: 19px; }
   .work-head { row-gap: 6px; }

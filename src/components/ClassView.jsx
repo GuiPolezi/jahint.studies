@@ -11,25 +11,13 @@ import { formatBR, todayISO, DAYS } from '../lib/utils'
 // Painel do editor — remontado por anotação (key) para isolar carregamento/
 // salvamento. clsName alimenta o cabeçalho que só existe na impressão.
 function NoteEditorPane({ note, clsName }) {
-  const { updNote } = useStore()
   const { initial, status, onChange } = useAutosaveContent('note', note.id)
 
   return (
     <div className="note-editor-pane">
-      {/* Linha discreta no topo do documento: título (espelho do topbar,
-          que é quem edita) + data editável + estado do salvamento */}
-      <div className="note-doc-head">
-        <span className="note-doc-title">{note.title}</span>
-        <span className="note-doc-sep">—</span>
-        <input
-          type="date"
-          className="note-date-input subtle"
-          value={note.date || ''}
-          onChange={e => updNote(note.id, { date: e.target.value })}
-          title="Data da aula"
-        />
-        <SaveStatus status={status} />
-      </div>
+      {/* Estado do salvamento flutua no canto: informa sem ocupar uma linha
+          própria — o texto começa direto no topo do painel */}
+      <div className="note-save-float"><SaveStatus status={status} /></div>
 
       {/* Só aparece no papel (styles.print.css): identifica o documento */}
       <div className="print-head">

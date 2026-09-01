@@ -11,8 +11,8 @@
 
 @media print {
   /* Some tudo que não é o documento */
-  .bg-aero, .sidebar, .sidebar-hotzone, .mobile-topbar, .drawer-backdrop,
-  .class-topbar, .class-side, .note-doc-head, .save-status,
+  .bg-aero, .sidebar, .mobile-topbar, .drawer-backdrop,
+  .class-topbar, .class-side, .note-save-float, .save-status,
   [data-tippy-root], .pop-backdrop, .popover, .modal-overlay,
   .floating-plus-btn, .note-files {
     display: none !important;

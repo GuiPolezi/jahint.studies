@@ -55,9 +55,9 @@ export default function Shell() {
 
   const currentNav = NAV.find(item => item.match.includes(route.view)) || NAV[0]
 
-  // Páginas de anotação (aula e trabalho): no desktop o menu recolhe para a
-  // lateral, liberando a largura toda para o editor. Ele volta ao pousar o
-  // mouse na borda esquerda (faixa .sidebar-hotzone) ou ao focar via teclado.
+  // Páginas de anotação (aula e trabalho): no desktop o menu lateral não
+  // existe — a largura toda fica para o editor. A navegação acontece pelos
+  // atalhos da própria página (Voltar, quicknav). No mobile a gaveta segue.
   const sidebarPeek = route.view === 'class' || route.view === 'work'
 
   const avatar = user.avatar
@@ -93,15 +93,6 @@ export default function Shell() {
       {/* Fundo escurecido: fecha a gaveta ao tocar fora */}
       {menuOpen && (
         <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-      )}
-
-      {/* Faixa sensível ao mouse na borda esquerda (só existe no modo peek do
-          desktop). Precisa vir ANTES do <aside> no DOM: o CSS usa o seletor de
-          irmão (~) para revelar a sidebar quando esta faixa recebe hover. */}
-      {sidebarPeek && (
-        <div className="sidebar-hotzone" aria-hidden="true">
-          <div className="sidebar-handle" />
-        </div>
       )}
 
       <aside className={'sidebar' + (menuOpen ? ' open' : '')}>
