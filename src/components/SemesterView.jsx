@@ -7,7 +7,7 @@ import { DAYS, DAYS_SHORT, CLASS_COLORS } from '../lib/utils'
 const emptySlot = day => ({ day, start: '19:00', end: '20:40' })
 
 function ClassFormModal({ semesterId, initial, presetDay, onClose }) {
-  const { addClass, updClass } = useStore()
+  const { data, addClass, updClass } = useStore()
   const [name, setName] = useState(initial?.name || '')
   const [professor, setProfessor] = useState(initial?.professor || '')
   const [color, setColor] = useState(initial?.color || CLASS_COLORS[0])
@@ -18,6 +18,13 @@ function ClassFormModal({ semesterId, initial, presetDay, onClose }) {
   const save = e => {
     e.preventDefault()
     if (!name.trim() || slots.length === 0) return
+    // Matéria repetida no mesmo semestre gera confusão em todo o app (selects
+    // com opções idênticas, livros que parecem duplicados em Trabalhos) —
+    // só segue com a confirmação explícita do usuário.
+    const duplicada = data.classes.some(c =>
+      c.semesterId === semesterId && c.id !== initial?.id &&
+      c.name.trim().toLowerCase() === name.trim().toLowerCase())
+    if (duplicada && !confirm(`Já existe a matéria "${name.trim()}" neste semestre. Cadastrar mesmo assim?`)) return
     const payload = { name: name.trim(), professor: professor.trim(), color, slots }
     if (initial) updClass(initial.id, payload)
     else addClass(semesterId, payload)

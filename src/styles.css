@@ -818,6 +818,11 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 
 .shelf-item {
   display: flex; flex-direction: column; align-items: center; position: relative;
+  /* min-width: 0 — item de grid não encolhe abaixo do min-content do que
+     carrega dentro, e o nome da aula na legenda (nowrap) inflava as colunas
+     até o grid estourar a página pela direita. Com isso a coluna volta a
+     obedecer o 1fr e a legenda corta com reticências. */
+  min-width: 0;
   /* z-index inteiro + transition: ao sair do hover ele decai gradualmente,
      então o livro ainda fechando não é "cortado" pelos vizinhos */
   z-index: 1;

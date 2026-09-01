@@ -68,6 +68,12 @@ export function WorkFormModal({ onClose, onCreated }) {
 // Entregas ordenadas pela data (sem data vai para o fim)
 const byDue = (a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')
 
+// Chave do livro: a matéria (nome normalizado) dentro de um semestre. Se a
+// mesma matéria foi cadastrada mais de uma vez no mesmo semestre, os
+// registros duplicados se fundem num único livro — as entregas de todos
+// aparecem juntas dentro dele, nunca em livros repetidos.
+const bookKey = c => `${c.semesterId}::${c.name.trim().toLowerCase()}`
+
 // Título da capa: quanto mais longo o nome da aula, menor a fonte
 const coverFontSize = name =>
   name.length <= 12 ? '1.05rem' : name.length <= 28 ? '0.88rem' : '0.76rem'
@@ -206,8 +212,8 @@ function BookPaperModal({ book, onClose, onOpenWork }) {
 export default function WorksView() {
   const { data, nav, route } = useStore()
   const [modal, setModal] = useState(false)
-  // Livro aberto no popup: { classId, highlightId? } — highlightId marca a
-  // entrega recém-criada dentro do papel
+  // Livro aberto no popup: { key (bookKey), highlightId? } — highlightId
+  // marca a entrega recém-criada dentro do papel
   const [openBook, setOpenBook] = useState(null)
   const [fClass, setFClass] = useState('todas')
   // Começa no ano/semestre pedido pela navegação (ex.: voltar do detalhe de um trabalho),
@@ -232,22 +238,32 @@ export default function WorksView() {
   const classOptions = data.classes
     .filter(c => (fYearSafe === 'todos' ? true : yearOf(c.id)?.id === fYearSafe))
     .filter(c => (fSemSafe === 'todos' ? true : c.semesterId === fSemSafe))
-  // Matéria de fora do ano/semestre escolhido não pode continuar filtrando
-  const fClassSafe = classOptions.some(c => c.id === fClass) ? fClass : 'todas'
 
-  // Um livro por aula que tem pelo menos uma entrega registrada — aulas sem
-  // trabalho/tarefa não aparecem na estante
-  const books = classOptions
-    .filter(c => (fClassSafe === 'todas' ? true : c.id === fClassSafe))
-    .map(c => {
+  // Agrupa as aulas do escopo por matéria (bookKey): registros duplicados da
+  // mesma matéria no mesmo semestre viram UM grupo, com os ids de todos
+  const groups = []
+  for (const c of classOptions) {
+    const key = bookKey(c)
+    let g = groups.find(x => x.key === key)
+    if (!g) {
       const { sem, year } = classInfo(data, c.id)
-      return {
-        cls: c, sem, year,
-        term: termLabel(sem, year),
-        works: data.works.filter(w => w.classId === c.id).sort(byDue),
-      }
-    })
-    .filter(b => b.works.length > 0)
+      g = { key, cls: c, sem, year, term: termLabel(sem, year), classIds: [] }
+      groups.push(g)
+    }
+    g.classIds.push(c.id)
+  }
+  for (const g of groups) {
+    g.works = data.works.filter(w => g.classIds.includes(w.classId)).sort(byDue)
+  }
+
+  // Matéria de fora do ano/semestre escolhido não pode continuar filtrando
+  const fClassSafe = groups.some(g => g.key === fClass) ? fClass : 'todas'
+
+  // Um livro por matéria que tem pelo menos uma entrega registrada — matérias
+  // sem trabalho/tarefa não aparecem na estante
+  const books = groups
+    .filter(g => (fClassSafe === 'todas' ? true : g.key === fClassSafe))
+    .filter(g => g.works.length > 0)
     .sort((a, b) =>
       (a.year?.number || 0) - (b.year?.number || 0) ||
       (a.sem?.number || 0) - (b.sem?.number || 0) ||
@@ -260,23 +276,26 @@ export default function WorksView() {
       (pend ? ` · ${pend} pendente${pend === 1 ? '' : 's'}` : ' · tudo em dia ✓')
   }
 
-  // Após criar uma entrega: ajusta os filtros para a aula dela ficar à vista
-  // (o livro surge, se ainda não existia) e abre o papel com ela em destaque
+  // Após criar uma entrega: ajusta os filtros para a matéria dela ficar à
+  // vista (o livro surge, se ainda não existia) e abre o papel com ela em
+  // destaque — cai sempre no livro do grupo, mesmo com registro duplicado
   const afterCreate = w => {
-    const { sem, year } = classInfo(data, w.classId)
+    const c = data.classes.find(x => x.id === w.classId)
+    if (!c) return
+    const { sem, year } = classInfo(data, c.id)
     setFYear(year?.id || 'todos')
     setFSem(sem?.id || 'todos')
     setFClass('todas')
-    setOpenBook({ classId: w.classId, highlightId: w.id })
+    setOpenBook({ key: bookKey(c), highlightId: w.id })
   }
 
   // Conteúdo do popup, derivado do estado mais recente do store
-  const openCls = openBook ? data.classes.find(c => c.id === openBook.classId) : null
-  const bookData = openCls
+  const openGroup = openBook ? groups.find(g => g.key === openBook.key) : null
+  const bookData = openGroup
     ? {
-        cls: openCls,
-        term: termLabel(classInfo(data, openCls.id).sem, classInfo(data, openCls.id).year),
-        works: data.works.filter(w => w.classId === openCls.id).sort(byDue),
+        cls: openGroup.cls,
+        term: openGroup.term,
+        works: openGroup.works,
         highlightId: openBook.highlightId,
       }
     : null
@@ -326,7 +345,7 @@ export default function WorksView() {
         )}
         <select value={fClassSafe} onChange={e => setFClass(e.target.value)}>
           <option value="todas">Todas as matérias</option>
-          {classOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {groups.map(g => <option key={g.key} value={g.key}>{g.cls.name}</option>)}
         </select>
       </div>
 
@@ -345,13 +364,13 @@ export default function WorksView() {
       ) : (
         <section className="shelf">
           {books.map((b, i) => (
-            <article className="shelf-item" key={b.cls.id} style={{ '--i': i }}>
+            <article className="shelf-item" key={b.key} style={{ '--i': i }}>
               <div className="scene">
                 <Book3D
                   cls={b.cls}
                   term={b.term}
                   caption={captionOf(b)}
-                  onOpen={() => setOpenBook({ classId: b.cls.id })}
+                  onOpen={() => setOpenBook({ key: b.key })}
                 />
               </div>
               <div className="caption">
