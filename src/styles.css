@@ -19,6 +19,7 @@
   --shadow-soft: 0 4px 16px rgba(31, 87, 148, 0.10);
   --radius: 22px;
   --radius-sm: 14px;
+  --ease-book: cubic-bezier(0.35, 0.12, 0.16, 1);
 
   --ok: #0a84ff; --soon: #b58a00; --warn: #e8630a;
   --urgent: #e0284f; --late: #b91c1c; --done: #16a34a;
@@ -801,14 +802,501 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .filter-bar { display: flex; gap: 9px; margin-bottom: 16px; flex-wrap: wrap; }
 .filter-bar select { min-width: 150px; }
 
-.works-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-.work-card { cursor: pointer; transition: transform 0.16s ease, box-shadow 0.16s ease; display: flex; flex-direction: column; gap: 8px; }
-.work-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
-.work-card h3 { font-size: 15.5px; font-weight: 700; letter-spacing: -0.2px; position: relative; }
-.work-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; position: relative; }
-.work-card-meta { display: flex; gap: 6px; flex-wrap: wrap; }
-.work-card-info { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--ink-soft); }
-.work-card-info span { display: inline-flex; align-items: center; gap: 4px; }
+/* ---------- trabalhos: estante de livros 3D ----------
+   Cada livro é uma aula com pelo menos uma entrega registrada; a cor da
+   capa é a cor da aula. O clique abre o "papel de pauta" (dialog) com os
+   trabalhos/tarefas daquela aula.
+   Geometria 3D do livro adaptada de "Animated Books with CSS 3D
+   Transforms" (Marco Barría / Codrops): capas como sólidos com espessura,
+   lombada própria e folhas em leque com durações variadas. */
+
+.shelf {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  column-gap: 36px; row-gap: 84px;
+  margin-top: 34px; padding-bottom: 26px;
+}
+
+.shelf-item {
+  display: flex; flex-direction: column; align-items: center; position: relative;
+  /* z-index inteiro + transition: ao sair do hover ele decai gradualmente,
+     então o livro ainda fechando não é "cortado" pelos vizinhos */
+  z-index: 1;
+  transition: z-index 0.8s linear;
+  /* entrada em cascata — o índice (--i) vem inline do React */
+  animation: shelf-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes shelf-in {
+  from { opacity: 0; transform: translateY(30px); }
+}
+
+.shelf-item:hover, .shelf-item:focus-within { z-index: 10; }
+
+.shelf-item .scene { position: relative; transition: transform 0.7s var(--ease-book); }
+.shelf-item .scene:focus-within { transform: translateY(-6px); }
+
+/* sombra elíptica no chão, expande quando o livro abre */
+.shelf-item .scene::after {
+  content: ''; position: absolute; left: 42%; bottom: -22px;
+  width: 105%; height: 20px;
+  background: radial-gradient(ellipse at center, rgba(31, 87, 148, 0.26), transparent 68%);
+  transform: translateX(-50%);
+  transition: width 0.8s var(--ease-book), left 0.8s var(--ease-book);
+  pointer-events: none;
+}
+.shelf-item .scene:focus-within::after { width: 175%; left: 22%; }
+
+@media (hover: hover) {
+  .shelf-item:hover .scene { transform: translateY(-6px); }
+  .shelf-item:hover .scene::after { width: 175%; left: 22%; }
+  .shelf-item:hover .caption { transform: translateY(4px); }
+}
+
+/* ----- livro: container ----- */
+.book {
+  position: relative; width: 160px; height: 220px;
+  perspective: 1000px; transform-style: preserve-3d;
+  cursor: pointer; outline: none;
+}
+.book:focus-visible { outline: 2px solid var(--accent); outline-offset: 22px; border-radius: 4px; }
+.book ul { list-style: none; }
+
+/* ----- cores e faces ----- */
+.hardcover_front li:first-child { background-color: var(--cover); backface-visibility: hidden; }
+.hardcover_front li:last-child { background: #f6fcff; }
+.hardcover_back li:first-child { background: #f6fcff; }
+.hardcover_back li:last-child  { background: var(--cover); }
+.book_spine li:first-child { background: color-mix(in srgb, var(--cover), black 14%); }
+.book_spine li:last-child  { background: color-mix(in srgb, var(--cover), black 40%); }
+
+/* espessura das capas e lombada (tiras de borda) */
+.hardcover_front li:first-child::after,
+.hardcover_front li:first-child::before,
+.hardcover_front li:last-child::after,
+.hardcover_front li:last-child::before,
+.hardcover_back li:first-child::after,
+.hardcover_back li:first-child::before,
+.hardcover_back li:last-child::after,
+.hardcover_back li:last-child::before,
+.book_spine li:first-child::after,
+.book_spine li:first-child::before,
+.book_spine li:last-child::after,
+.book_spine li:last-child::before {
+  content: '';
+  background: color-mix(in srgb, var(--cover), black 32%);
+}
+
+/* folhas — gradiente de papel frio + vinco */
+.book .page > li {
+  background: linear-gradient(to right, #dcebf5 0%, #ffffff 100%);
+  box-shadow:
+    inset 0 -1px 2px rgba(60, 100, 140, 0.12),
+    inset -1px 0 1px rgba(120, 160, 190, 0.2);
+  border-radius: 0 5px 5px 0;
+}
+
+/* ----- pose de repouso: livro entreaberto ----- */
+.hardcover_front { transform: rotateY(-34deg) translateZ(8px); z-index: 100; }
+.hardcover_back { transform: rotateY(-15deg) translateZ(-8px); }
+.book .page li:nth-child(1) { transform: rotateY(-28deg); }
+.book .page li:nth-child(2) { transform: rotateY(-30deg); }
+.book .page li:nth-child(3) { transform: rotateY(-32deg); }
+.book .page li:nth-child(4) { transform: rotateY(-34deg); }
+.book .page li:nth-child(5) { transform: rotateY(-36deg); }
+
+/* ----- posicionamento 3D ----- */
+.hardcover_front, .hardcover_back, .book_spine,
+.hardcover_front li, .hardcover_back li, .book_spine li {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+}
+.hardcover_front, .hardcover_back { transform-origin: 0% 100%; }
+.hardcover_front { transition: transform 0.8s var(--ease-book), z-index 0.6s; }
+.hardcover_front li:first-child { user-select: none; transform: translateZ(2px); }
+.hardcover_front li:last-child { transform: rotateY(180deg) translateZ(2px); }
+.hardcover_back li:first-child { transform: translateZ(2px); }
+.hardcover_back li:last-child  { transform: translateZ(-2px); }
+
+.hardcover_front li:first-child::after,
+.hardcover_front li:first-child::before,
+.hardcover_front li:last-child::after,
+.hardcover_front li:last-child::before,
+.hardcover_back li:first-child::after,
+.hardcover_back li:first-child::before,
+.hardcover_back li:last-child::after,
+.hardcover_back li:last-child::before,
+.book_spine li:first-child::after,
+.book_spine li:first-child::before,
+.book_spine li:last-child::after,
+.book_spine li:last-child::before {
+  position: absolute; top: 0; left: 0;
+}
+
+/* bordas da capa frontal */
+.hardcover_front li:first-child::after,
+.hardcover_front li:first-child::before { width: 4px; height: 100%; }
+.hardcover_front li:first-child::after { transform: rotateY(90deg) translateZ(-2px) translateX(2px); }
+.hardcover_front li:first-child::before { transform: rotateY(90deg) translateZ(158px) translateX(2px); }
+.hardcover_front li:last-child::after,
+.hardcover_front li:last-child::before { width: 4px; height: 160px; }
+.hardcover_front li:last-child::after {
+  transform: rotateX(90deg) rotateZ(90deg) translateZ(80px) translateX(-2px) translateY(-78px);
+}
+.hardcover_front li:last-child::before {
+  box-shadow: 0 0 30px 5px rgba(30, 90, 140, 0.45);
+  transform: rotateX(90deg) rotateZ(90deg) translateZ(-140px) translateX(-2px) translateY(-78px);
+}
+
+/* bordas da contracapa */
+.hardcover_back li:first-child::after,
+.hardcover_back li:first-child::before { width: 4px; height: 100%; }
+.hardcover_back li:first-child::after { transform: rotateY(90deg) translateZ(-2px) translateX(2px); }
+.hardcover_back li:first-child::before { transform: rotateY(90deg) translateZ(158px) translateX(2px); }
+.hardcover_back li:last-child::after,
+.hardcover_back li:last-child::before { width: 4px; height: 160px; }
+.hardcover_back li:last-child::after {
+  transform: rotateX(90deg) rotateZ(90deg) translateZ(80px) translateX(2px) translateY(-78px);
+}
+.hardcover_back li:last-child::before {
+  box-shadow: 10px -1px 80px 20px rgba(20, 70, 120, 0.28);
+  transform: rotateX(90deg) rotateZ(90deg) translateZ(-140px) translateX(2px) translateY(-78px);
+}
+
+/* lombada */
+.book_spine {
+  transform: rotateY(60deg) translateX(-5px) translateZ(-12px);
+  width: 16px; z-index: 0;
+}
+.book_spine li:first-child { transform: translateZ(2px); }
+.book_spine li:last-child  { transform: translateZ(-2px); }
+.book_spine li:first-child::after,
+.book_spine li:first-child::before { width: 4px; height: 100%; }
+.book_spine li:first-child::after { transform: rotateY(90deg) translateZ(-2px) translateX(2px); }
+.book_spine li:first-child::before { transform: rotateY(-90deg) translateZ(-12px); }
+.book_spine li:last-child::after,
+.book_spine li:last-child::before { width: 4px; height: 16px; }
+.book_spine li:last-child::after {
+  transform: rotateX(90deg) rotateZ(90deg) translateZ(8px) translateX(2px) translateY(-6px);
+}
+.book_spine li:last-child::before {
+  box-shadow: 5px -1px 100px 40px rgba(20, 70, 120, 0.18);
+  transform: rotateX(90deg) rotateZ(90deg) translateZ(-210px) translateX(2px) translateY(-6px);
+}
+
+/* folhas */
+.book .page,
+.book .page > li { position: absolute; top: 0; left: 0; transform-style: preserve-3d; }
+.book .page { width: 100%; height: 98%; top: 1%; left: 3%; z-index: 10; }
+.book .page > li {
+  width: 100%; height: 100%;
+  transform-origin: left center;
+  transition-property: transform;
+  transition-timing-function: ease;
+}
+.book .page > li:nth-child(1) { transition-duration: 0.6s; }
+.book .page > li:nth-child(2) { transition-duration: 0.6s; }
+.book .page > li:nth-child(3) { transition-duration: 0.4s; }
+.book .page > li:nth-child(4) { transition-duration: 0.5s; }
+.book .page > li:nth-child(5) { transition-duration: 0.6s; }
+
+/* ----- abertura (só com mouse; no toque o clique abre direto o papel) ----
+   Durações diferentes por folha (1.2s–1.8s) no lugar de delays: cada folha
+   viaja no seu próprio tempo, como papel de verdade. */
+@media (hover: hover) {
+  .book:is(:hover, :focus-visible) > .hardcover_front {
+    transform: rotateY(-145deg) translateZ(0);
+    z-index: 0;
+  }
+  .book:is(:hover, :focus-visible) > .page li:nth-child(1) { transform: rotateY(-30deg); transition-duration: 1.5s; }
+  .book:is(:hover, :focus-visible) > .page li:nth-child(2) { transform: rotateY(-35deg); transition-duration: 1.8s; }
+  .book:is(:hover, :focus-visible) > .page li:nth-child(3) { transform: rotateY(-118deg); transition-duration: 1.6s; }
+  .book:is(:hover, :focus-visible) > .page li:nth-child(4) { transform: rotateY(-130deg); transition-duration: 1.4s; }
+  .book:is(:hover, :focus-visible) > .page li:nth-child(5) { transform: rotateY(-140deg); transition-duration: 1.2s; }
+
+  .book:is(:hover, :focus-visible) .hint {
+    opacity: 1; transform: translateY(0); filter: blur(0);
+    transition-delay: 0.5s;
+  }
+  .book:is(:hover, :focus-visible) .hint::after {
+    transform: scaleX(1);
+    transition-delay: 1s;
+  }
+}
+
+/* ----- arte da capa ----- */
+.coverDesign {
+  position: absolute; inset: 0; overflow: hidden; z-index: 1;
+  backface-visibility: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 22px 14px; text-align: center;
+}
+
+/* verniz "gel" da capa: brilho convexo com horizonte de reflexo
+   (hard stop ~48%) + flare diagonal — assinatura Frutiger Aero */
+.coverDesign::after {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(-135deg, rgba(255, 255, 255, 0.3) 0%, transparent 55%),
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.42) 0%,
+      rgba(255, 255, 255, 0.12) 46%,
+      rgba(255, 255, 255, 0) 52%,
+      rgba(255, 255, 255, 0.1) 100%);
+}
+
+/* filete de vidro da coleção */
+.coverDesign::before {
+  content: ''; position: absolute; inset: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-top-color: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+}
+
+.coverDesign span {
+  font-size: 0.56rem; font-weight: 600; letter-spacing: 0.18em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.85);
+}
+.coverDesign h3 {
+  font-weight: 700; line-height: 1.25; letter-spacing: -0.01em;
+  color: #fff; max-width: 100%;
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+  text-shadow: 0 1px 3px rgba(10, 50, 90, 0.35);
+}
+
+/* ----- "Clique para ver as entregas" (na folha, sob a capa) ----- */
+.book .hint {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 18px;
+  backface-visibility: hidden;
+  opacity: 0; transform: translateY(10px); filter: blur(7px);
+  transition: opacity 0.55s ease, transform 0.55s var(--ease-book), filter 0.55s ease;
+}
+.book .hint p {
+  font-weight: 600; font-size: 0.8rem; letter-spacing: 0.01em;
+  color: var(--ink); text-align: center; line-height: 1.35;
+}
+.book .hint::after {
+  content: ''; width: 26px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--aqua));
+  transform: scaleX(0);
+  transition: transform 0.5s var(--ease-book) 0s;
+}
+
+/* ----- legenda abaixo do livro: pill de liquid glass ----- */
+.shelf-item .caption {
+  margin-top: 40px; max-width: 100%; text-align: center;
+  padding: 9px 22px 11px;
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid var(--glass-border); border-top-color: #fff;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 10px 24px rgba(31, 87, 148, 0.14);
+  transition: transform 0.6s var(--ease-book);
+}
+.shelf-item .caption h2 {
+  font-size: 14px; font-weight: 700; letter-spacing: -0.1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.shelf-item .caption p { margin-top: 2px; font-size: 11.5px; color: var(--ink-soft); }
+
+/* ----- vizinhança: abrir espaço para a capa ----
+   A capa aberta (-145°) avança ~86px além da própria célula, para a
+   esquerda. O item imediatamente à esquerda desliza junto (livro + legenda)
+   para a abertura não "colar" no vizinho. O último item de cada linha nunca
+   desliza — seu next sibling no DOM já está na linha de baixo. Os módulos do
+   nth-child acompanham o nº de colunas de cada faixa: mudou o grid, mude
+   aqui também (≥1151px: 4 colunas · 901–1150px: 3 · ≤900px: mobile, sem
+   hover, nada desliza). */
+@media (hover: hover) and (min-width: 1151px) {
+  .shelf-item:has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
+    transform: translateX(-32px);
+  }
+  .shelf-item:nth-child(4n):has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
+    transform: none;
+  }
+}
+@media (hover: hover) and (min-width: 901px) and (max-width: 1150px) {
+  .shelf { grid-template-columns: repeat(3, 1fr); }
+  .shelf-item:has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
+    transform: translateX(-32px);
+  }
+  .shelf-item:nth-child(3n):has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
+    transform: none;
+  }
+}
+/* sem hover (mesmo no desktop, ex.: janela estreita): 3 colunas ≤1150px */
+@media (hover: none) and (min-width: 901px) and (max-width: 1150px) {
+  .shelf { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ----- popup do livro: papel com pauta ----- */
+
+/* trava a rolagem do conteúdo enquanto o papel está aberto */
+body:has(.paper-modal[open]) .content { overflow: hidden; }
+
+.paper-modal {
+  --rule: 32px;      /* passo da pauta — todo line-height/margem interna é múltiplo disso */
+  --margin-x: 64px;  /* posição da linha de margem vertical */
+  position: fixed; inset: 0; margin: auto;
+  width: min(540px, calc(100vw - 40px));
+  max-height: min(660px, 85dvh);
+  padding: 0;
+  color: var(--ink);
+  border: 1px solid var(--glass-border); border-top-color: #fff;
+  border-radius: 24px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(28px) saturate(1.5); -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    0 40px 90px rgba(20, 70, 120, 0.35),
+    0 4px 14px rgba(20, 70, 120, 0.16);
+  opacity: 0;
+  transform: translateY(26px) scale(0.97);
+  transition:
+    opacity 0.35s ease,
+    transform 0.45s var(--ease-book),
+    display 0.45s allow-discrete,
+    overlay 0.45s allow-discrete;
+}
+.paper-modal[open] {
+  display: flex; flex-direction: column;
+  opacity: 1; transform: none;
+}
+/* estado inicial da animação de entrada (navegadores sem @starting-style
+   apenas abrem sem fade — degradação ok) */
+@starting-style {
+  .paper-modal[open] { opacity: 0; transform: translateY(26px) scale(0.97); }
+}
+.paper-modal::backdrop {
+  background: rgba(130, 180, 220, 0.32);
+  backdrop-filter: blur(8px) saturate(1.2);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.paper-modal[open]::backdrop { opacity: 1; }
+@starting-style {
+  .paper-modal[open]::backdrop { opacity: 0; }
+}
+
+/* a folha: pauta desenhada no fundo; background-attachment: local faz as
+   linhas rolarem junto com o texto */
+.paper-body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: calc(var(--rule) * 2) 40px calc(var(--rule) * 1.5) calc(var(--margin-x) + 24px);
+  background:
+    linear-gradient(90deg,
+      transparent calc(var(--margin-x) - 1px),
+      rgba(10, 132, 255, 0.45) 0,
+      rgba(10, 132, 255, 0.45) var(--margin-x),
+      transparent 0),
+    repeating-linear-gradient(to bottom,
+      transparent 0 calc(var(--rule) - 1px),
+      rgba(80, 150, 210, 0.28) 0 var(--rule));
+  background-attachment: local, local;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink-soft), transparent 45%) transparent;
+}
+
+.paper-vol {
+  display: block;
+  font-size: 0.6rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+  line-height: var(--rule);
+  color: color-mix(in srgb, var(--cover, var(--accent)), var(--ink) 30%);
+}
+.paper-title {
+  font-weight: 800;
+  font-size: clamp(1.3rem, 4.6vw, 1.55rem);
+  letter-spacing: -0.02em;
+  line-height: var(--rule);
+}
+.paper-sub { font-size: 0.74rem; letter-spacing: 0.04em; color: var(--ink-soft); line-height: var(--rule); }
+
+.paper-list { list-style: none; margin-top: var(--rule); counter-reset: entregas; }
+.paper-list li { position: relative; line-height: var(--rule); counter-increment: entregas; }
+
+/* numeração anotada na margem, à esquerda da linha azul */
+.paper-list li::before {
+  content: counter(entregas, decimal-leading-zero);
+  position: absolute; top: 0; right: calc(100% + 34px);
+  font-size: 0.62rem; font-weight: 600; letter-spacing: 0.08em;
+  line-height: var(--rule);
+  color: rgba(10, 132, 255, 0.6);
+}
+
+/* cada linha é um botão que abre a página de anotações da entrega; nada
+   aqui pode mexer no line-height — o texto precisa seguir na pauta */
+.paper-list button {
+  width: 100%; padding: 0; text-align: left;
+  font-size: inherit; line-height: inherit; color: inherit;
+  border-radius: 4px;
+}
+.paper-list em {
+  font-style: normal; font-weight: 600; font-size: 0.88rem; letter-spacing: -0.005em;
+}
+.paper-list li span { font-size: 0.72rem; color: var(--ink-soft); }
+.paper-list button::after {
+  content: '\2197'; /* ↗ */
+  display: inline-block; margin-left: 7px;
+  font-size: 0.68rem; color: var(--accent);
+  opacity: 0; transform: translateY(3px);
+  transition: opacity 0.25s ease, transform 0.3s var(--ease-book);
+}
+.paper-list button:is(:hover, :focus-visible) em { color: var(--accent-deep); }
+.paper-list button:hover em {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(10, 132, 255, 0.45);
+}
+.paper-list button:is(:hover, :focus-visible)::after { opacity: 1; transform: none; }
+.paper-list button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* estados da entrega dentro da linha (o <i> herda a pauta) */
+.paper-due, .paper-done { font-style: normal; }
+.paper-due.du-soon { color: var(--soon); }
+.paper-due.du-warn { color: var(--warn); }
+.paper-due.du-urgent, .paper-due.du-today { color: var(--urgent); font-weight: 700; }
+.paper-due.du-late { color: var(--late); font-weight: 700; }
+.paper-done { color: var(--done); }
+
+/* entrega recém-criada: pulso suave de destaque ao abrir o papel */
+.paper-item.is-new button {
+  animation: paper-new 2.2s ease 0.35s backwards;
+}
+@keyframes paper-new {
+  0%  { background: rgba(10, 132, 255, 0.16); box-shadow: 0 0 0 6px rgba(10, 132, 255, 0.16); }
+  60% { background: rgba(10, 132, 255, 0.16); box-shadow: 0 0 0 6px rgba(10, 132, 255, 0.16); }
+  100% { background: transparent; box-shadow: none; }
+}
+
+.paper-foot {
+  margin-top: var(--rule);
+  font-style: italic; font-size: 0.76rem; color: var(--ink-soft);
+  line-height: var(--rule);
+}
+
+.paper-close {
+  position: absolute; top: 12px; right: 12px; z-index: 2;
+  width: 34px; height: 34px;
+  border: 1px solid var(--glass-border); border-top-color: #fff;
+  border-radius: 50%;
+  background: var(--glass);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 4px 10px rgba(31, 87, 148, 0.14);
+  color: var(--ink-soft);
+  font-size: 1.05rem; line-height: 1;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.4s var(--ease-book);
+}
+.paper-close:hover { background: rgba(255, 255, 255, 0.75); color: var(--ink); transform: rotate(90deg); }
+.paper-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf-item { animation: none; }
+  .shelf-item .scene, .shelf-item .caption,
+  .hardcover_front, .book .page > li, .book .hint,
+  .paper-modal, .paper-modal::backdrop { transition-duration: 0.01ms; }
+  .paper-item.is-new button { animation: none; }
+}
 
 .type-badge {
   padding: 3px 11px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.3px;

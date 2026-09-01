@@ -46,12 +46,11 @@
 
   /* Efeitos de hover não fazem sentido e "grudam" após o toque */
   .sem-row:hover,
-  .work-card:hover,
   .class-card:hover,
   .big-card[role='button']:hover { transform: none; }
 
   /* Sem o flash cinza do iOS e sem o atraso de 300ms do duplo-toque */
-  a, button, .nav-item, .work-card, .class-card, .sem-row,
+  a, button, .nav-item, .book, .class-card, .sem-row,
   .big-card, .note-item, .date-list li, .today-list li, .work-tab, .radio-pill {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
@@ -59,12 +58,16 @@
 
   /* Sem hover, o toque precisa de outra confirmação visual de que
      "pegou" — um leve afundar no momento do contato. */
-  .work-card:active, .class-card:active, .sem-row:active,
+  .class-card:active, .sem-row:active,
   .note-item:active, .date-list li:active, .today-list li:active,
   .big-card[role='button']:active {
     transform: scale(0.985);
     filter: brightness(0.97);
   }
+
+  /* Livro 3D da estante: no toque a capa não folheia (isso é do hover) —
+     o toque abre direto o papel de pauta; o afundar confirma o contato. */
+  .shelf-item:active .scene { transform: scale(0.96); transition-duration: 0.25s; }
   .btn-primary:active, .btn-ghost:active, .btn-danger:active,
   .work-tab:active, .radio-pill:active { transform: scale(0.97); }
   .nav-item:active { background: rgba(255, 255, 255, 0.7); }
@@ -267,7 +270,7 @@
   .form-grid > *,
   .modal-form > *,
   .big-numbers > *,
-  .works-grid > *,
+  .shelf > *,
   .years-grid > *,
   .view-head > *,
   .field,
@@ -405,8 +408,13 @@
   .work-head { row-gap: 6px; }
   .work-head .view-sub { flex: 1 1 100%; }
 
-  /* ---------- trabalhos ---------- */
-  .works-grid { grid-template-columns: 1fr; }
+  /* ---------- trabalhos: estante de livros ---------- */
+  /* O livro tem geometria fixa de 160px — as colunas seguem o que cabe:
+     3 até o limite (3×160 + 2×18 = 516px de conteúdo), depois 2 e 1. */
+  .shelf { grid-template-columns: repeat(3, 1fr); column-gap: 18px; row-gap: 60px; margin-top: 20px; }
+  .shelf-item .caption { margin-top: 28px; padding: 7px 16px 9px; }
+  .shelf-item .caption h2 { font-size: 13px; }
+  .shelf-item .caption p { font-size: 11px; }
   .filter-bar { gap: 8px; }
   .filter-bar select { min-width: 0; flex: 1 1 calc(50% - 4px); }
   .work-info-grid { grid-template-columns: 1fr; }
@@ -612,11 +620,23 @@
   .exam-card-body { flex: 1 1 calc(100% - 130px); }
   .exam-topics { flex-basis: 100%; }
 
-  .work-card-info { gap: 9px; font-size: 11.5px; }
+  /* Estante em 2 colunas (2×160 + 14 = 334px de conteúdo — cabe até nos
+     360px) e papel de pauta ocupando quase toda a tela */
+  .shelf { grid-template-columns: repeat(2, 1fr); column-gap: 14px; row-gap: 52px; }
+  .paper-modal { --margin-x: 44px; width: calc(100vw - 24px); max-height: 88dvh; }
+  .paper-body { padding-right: 22px; padding-left: calc(var(--margin-x) + 18px); }
+  .paper-list li::before { right: calc(100% + 26px); }
+
   .members-chips { gap: 6px; }
   /* Título do trabalho é um <input>: quanto menor a fonte, mais texto
      visível antes de precisar rolar dentro do campo */
   .work-title { font-size: 17px; }
+}
+
+@media (max-width: 354px) {
+  /* Abaixo disso duas colunas de 160px de livro não cabem — vira vitrine
+     de um livro por linha, centralizado */
+  .shelf { grid-template-columns: 1fr; row-gap: 46px; }
 }
 
 @media (max-width: 380px) {
@@ -646,9 +666,14 @@
 @media (max-width: 900px) {
   .orb { animation: none; }
   .orb-1, .orb-4 { display: none; }
-  .panel, .big-card, .day-col, .sidebar {
+  .panel, .big-card, .day-col, .sidebar, .paper-modal {
     backdrop-filter: blur(14px) saturate(1.35);
     -webkit-backdrop-filter: blur(14px) saturate(1.35);
+  }
+  /* legenda dos livros: blur mais leve também */
+  .shelf-item .caption {
+    backdrop-filter: blur(10px) saturate(1.3);
+    -webkit-backdrop-filter: blur(10px) saturate(1.3);
   }
 }
 

@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { Briefcase, Plus, Users, Paperclip, CheckCircle2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Briefcase, Plus } from 'lucide-react'
 import {
   useStore, classInfo, termLabel, ClassSelect, defaultClassId, semestersOfYear,
 } from '../store/StoreProvider'
-import { Modal, Field, DueChip, EmptyState } from './ui'
-import { formatBR, todayISO } from '../lib/utils'
+import { Modal, Field, EmptyState } from './ui'
+import { formatBR, todayISO, daysUntil, urgency } from '../lib/utils'
 
 export const DELIVERY_OPTIONS = ['Microsoft Teams', 'Em aula (em mãos)', 'E-mail', 'Outro']
 
@@ -65,12 +65,151 @@ export function WorkFormModal({ onClose, onCreated }) {
   )
 }
 
+// Entregas ordenadas pela data (sem data vai para o fim)
+const byDue = (a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')
+
+// Título da capa: quanto mais longo o nome da aula, menor a fonte
+const coverFontSize = name =>
+  name.length <= 12 ? '1.05rem' : name.length <= 28 ? '0.88rem' : '0.76rem'
+
+/* Livro 3D — geometria adaptada de "Animated Books with CSS 3D Transforms"
+   (Marco Barría / Codrops): capa com espessura, lombada própria e folhas em
+   leque. A cor da capa (--cover) é a cor da aula. */
+function Book3D({ cls, term, caption, onOpen }) {
+  return (
+    <figure
+      className="book"
+      style={{ '--cover': cls.color }}
+      tabIndex={0}
+      role="button"
+      aria-haspopup="dialog"
+      aria-label={`${cls.name} — ${caption}. Clique para ver as entregas.`}
+      onClick={onOpen}
+      onKeyDown={e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        e.preventDefault()
+        onOpen()
+      }}
+    >
+      {/* Capa frontal: sólido com 2 faces + bordas */}
+      <ul className="hardcover_front">
+        <li>
+          <div className="coverDesign">
+            <span>{term}</span>
+            <h3 style={{ fontSize: coverFontSize(cls.name) }}>{cls.name}</h3>
+          </div>
+        </li>
+        <li />
+      </ul>
+
+      {/* Folhas em leque */}
+      <ul className="page">
+        <li />
+        <li><div className="hint"><p>Clique para ver<br />as entregas</p></div></li>
+        <li />
+        <li />
+        <li />
+      </ul>
+
+      {/* Contracapa e lombada */}
+      <ul className="hardcover_back"><li /><li /></ul>
+      <ul className="book_spine"><li /><li /></ul>
+    </figure>
+  )
+}
+
+/* Popup "papel de pauta" do livro: as entregas da aula, uma por linha.
+   Fica sempre montado para o <dialog> nativo animar também a saída
+   (transition com allow-discrete) — o conteúdo da última aula aberta
+   permanece renderizado durante o fade. */
+function BookPaperModal({ book, onClose, onOpenWork }) {
+  const dlgRef = useRef(null)
+  const bodyRef = useRef(null)
+  const lastRef = useRef(null)
+  if (book) lastRef.current = book
+  const shown = book || lastRef.current
+
+  useEffect(() => {
+    const dlg = dlgRef.current
+    if (!dlg) return
+    if (book) {
+      if (!dlg.open) dlg.showModal()
+      // Recém-criada em destaque: rola até ela; senão, começa do topo
+      requestAnimationFrame(() => {
+        const novo = dlg.querySelector('.paper-item.is-new')
+        if (novo) novo.scrollIntoView({ block: 'center' })
+        else bodyRef.current?.scrollTo({ top: 0 })
+      })
+    } else if (dlg.open) {
+      dlg.close()
+    }
+  }, [book])
+
+  if (!shown) return <dialog className="paper-modal" ref={dlgRef} onClose={onClose} />
+
+  const { cls, term, works, highlightId } = shown
+  const nTrab = works.filter(w => w.type === 'trabalho').length
+  const nTar = works.length - nTrab
+  const pend = works.filter(w => (w.progress ?? 0) < 100).length
+  const parts = []
+  if (nTrab) parts.push(`${nTrab} ${nTrab === 1 ? 'trabalho' : 'trabalhos'}`)
+  if (nTar) parts.push(`${nTar} ${nTar === 1 ? 'tarefa' : 'tarefas'}`)
+  const sub = parts.join(' · ') +
+    (pend ? ` — ${pend} pendente${pend === 1 ? '' : 's'}` : ' — tudo concluído ✓')
+
+  return (
+    <dialog
+      className="paper-modal"
+      ref={dlgRef}
+      style={{ '--cover': cls.color }}
+      aria-label={`Entregas de ${cls.name}`}
+      onClose={onClose}
+      /* clique no backdrop fecha — cliques internos caem na .paper-body,
+         então o alvo só é o próprio dialog quando vem do backdrop */
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <button className="paper-close" type="button" aria-label="Fechar lista" onClick={onClose}>×</button>
+      <div className="paper-body" ref={bodyRef}>
+        <header>
+          <span className="paper-vol">{term}</span>
+          <h2 className="paper-title">{cls.name}</h2>
+          <p className="paper-sub">{sub}</p>
+        </header>
+        <ol className="paper-list">
+          {works.map(w => {
+            const done = (w.progress ?? 0) >= 100
+            const days = daysUntil(w.dueDate)
+            return (
+              <li key={w.id} className={'paper-item' + (w.id === highlightId ? ' is-new' : '')}>
+                <button type="button" onClick={() => onOpenWork(w.id)}>
+                  <em>{w.title}</em>{' '}
+                  <span>
+                    — {w.type === 'trabalho' ? 'Trabalho' : 'Tarefa'}
+                    {done
+                      ? <i className="paper-done"> · concluído ✓</i>
+                      : w.dueDate
+                        ? <i className={'paper-due du-' + urgency(days)}> · entrega {formatBR(w.dueDate)}</i>
+                        : null}
+                    {!done && (w.progress ?? 0) > 0 && ` · ${w.progress}%`}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+        <p className="paper-foot">— clique numa entrega para abrir as anotações</p>
+      </div>
+    </dialog>
+  )
+}
+
 export default function WorksView() {
   const { data, nav, route } = useStore()
   const [modal, setModal] = useState(false)
-  const [fType, setFType] = useState('todos')
+  // Livro aberto no popup: { classId, highlightId? } — highlightId marca a
+  // entrega recém-criada dentro do papel
+  const [openBook, setOpenBook] = useState(null)
   const [fClass, setFClass] = useState('todas')
-  const [fStatus, setFStatus] = useState('pendentes')
   // Começa no ano/semestre pedido pela navegação (ex.: voltar do detalhe de um trabalho),
   // senão no semestre atual — "o semestre em que estou"
   const routeSem = route.semesterId ? data.semesters.find(s => s.id === route.semesterId) : null
@@ -82,7 +221,6 @@ export default function WorksView() {
     () => route.semesterId || (route.yearId ? 'todos' : data.activeSemesterId) || 'todos'
   )
 
-  const cls = id => data.classes.find(c => c.id === id)
   const yearOf = classId => classInfo(data, classId).year
   const fYearSafe = data.years.some(y => y.id === fYear) ? fYear : 'todos'
 
@@ -97,22 +235,57 @@ export default function WorksView() {
   // Matéria de fora do ano/semestre escolhido não pode continuar filtrando
   const fClassSafe = classOptions.some(c => c.id === fClass) ? fClass : 'todas'
 
-  const works = data.works
-    .filter(w => (fYearSafe === 'todos' ? true : yearOf(w.classId)?.id === fYearSafe))
-    .filter(w => (fSemSafe === 'todos' ? true : cls(w.classId)?.semesterId === fSemSafe))
-    .filter(w => (fType === 'todos' ? true : w.type === fType))
-    .filter(w => (fClassSafe === 'todas' ? true : w.classId === fClassSafe))
-    .filter(w => {
-      const done = (w.progress ?? 0) >= 100
-      return fStatus === 'todos' ? true : fStatus === 'pendentes' ? !done : done
+  // Um livro por aula que tem pelo menos uma entrega registrada — aulas sem
+  // trabalho/tarefa não aparecem na estante
+  const books = classOptions
+    .filter(c => (fClassSafe === 'todas' ? true : c.id === fClassSafe))
+    .map(c => {
+      const { sem, year } = classInfo(data, c.id)
+      return {
+        cls: c, sem, year,
+        term: termLabel(sem, year),
+        works: data.works.filter(w => w.classId === c.id).sort(byDue),
+      }
     })
-    .sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'))
+    .filter(b => b.works.length > 0)
+    .sort((a, b) =>
+      (a.year?.number || 0) - (b.year?.number || 0) ||
+      (a.sem?.number || 0) - (b.sem?.number || 0) ||
+      a.cls.name.localeCompare(b.cls.name, 'pt-BR'))
+
+  const captionOf = b => {
+    const n = b.works.length
+    const pend = b.works.filter(w => (w.progress ?? 0) < 100).length
+    return `${n} ${n === 1 ? 'entrega' : 'entregas'}` +
+      (pend ? ` · ${pend} pendente${pend === 1 ? '' : 's'}` : ' · tudo em dia ✓')
+  }
+
+  // Após criar uma entrega: ajusta os filtros para a aula dela ficar à vista
+  // (o livro surge, se ainda não existia) e abre o papel com ela em destaque
+  const afterCreate = w => {
+    const { sem, year } = classInfo(data, w.classId)
+    setFYear(year?.id || 'todos')
+    setFSem(sem?.id || 'todos')
+    setFClass('todas')
+    setOpenBook({ classId: w.classId, highlightId: w.id })
+  }
+
+  // Conteúdo do popup, derivado do estado mais recente do store
+  const openCls = openBook ? data.classes.find(c => c.id === openBook.classId) : null
+  const bookData = openCls
+    ? {
+        cls: openCls,
+        term: termLabel(classInfo(data, openCls.id).sem, classInfo(data, openCls.id).year),
+        works: data.works.filter(w => w.classId === openCls.id).sort(byDue),
+        highlightId: openBook.highlightId,
+      }
+    : null
 
   return (
     <div className="view">
       <header className="view-head">
         <div>
-          <h1>Trabalhos & Tarefas</h1>
+          <h1>Trabalhos &amp; Tarefas</h1>
           <p className="view-sub">Tudo o que precisa ser entregue, com prazo, grupo, progresso e arquivos.</p>
         </div>
         <button
@@ -151,68 +324,52 @@ export default function WorksView() {
             ))}
           </select>
         )}
-        <select value={fStatus} onChange={e => setFStatus(e.target.value)}>
-          <option value="pendentes">Pendentes</option>
-          <option value="concluidos">Concluídos</option>
-          <option value="todos">Todos</option>
-        </select>
-        <select value={fType} onChange={e => setFType(e.target.value)}>
-          <option value="todos">Tarefas e trabalhos</option>
-          <option value="tarefa">Só tarefas</option>
-          <option value="trabalho">Só trabalhos</option>
-        </select>
         <select value={fClassSafe} onChange={e => setFClass(e.target.value)}>
           <option value="todas">Todas as matérias</option>
           {classOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
-      {works.length === 0 ? (
+      {books.length === 0 ? (
         <EmptyState
           icon={Briefcase}
           title={data.works.length === 0 ? 'Nenhum trabalho registrado' : 'Nada encontrado com esses filtros'}
-          text={data.works.length === 0 ? 'Registre trabalhos e tarefas para nunca perder um prazo de entrega.' : undefined}
+          text={data.works.length === 0
+            ? 'Registre trabalhos e tarefas para nunca perder um prazo de entrega. Cada aula com entregas vira um livro na estante.'
+            : undefined}
         >
           {data.works.length === 0 && data.classes.length > 0 && (
             <button className="btn-primary" onClick={() => setModal(true)}><Plus size={16} /> Registrar trabalho</button>
           )}
         </EmptyState>
       ) : (
-        <div className="works-grid">
-          {works.map(w => {
-            const c = cls(w.classId)
-            const { sem, year } = classInfo(data, w.classId)
-            const done = (w.progress ?? 0) >= 100
-            return (
-              <div key={w.id} className="panel work-card" onClick={() => nav('work', { workId: w.id })}>
-                <div className="work-card-top">
-                  <span className={'type-badge ' + w.type}>{w.type === 'trabalho' ? 'Trabalho' : 'Tarefa'}</span>
-                  {done
-                    ? <span className="due-chip due-done"><CheckCircle2 size={13} /> Concluído</span>
-                    : <DueChip date={w.dueDate} />}
-                </div>
-                <h3>{w.title}</h3>
-                <div className="work-card-meta">
-                  {c && <span className="class-chip" style={{ '--cls-color': c.color }}>{c.name}</span>}
-                  {year && <span className="term-chip">{termLabel(sem, year)}</span>}
-                </div>
-                <div className="work-card-info">
-                  <span>📅 {formatBR(w.dueDate)}</span>
-                  <span>📤 {w.delivery}</span>
-                  {w.members.length > 0 && <span><Users size={13} /> {w.members.length}</span>}
-                  {w.attachments.length > 0 && <span><Paperclip size={13} /> {w.attachments.length}</span>}
-                </div>
-                <div className="progress-track">
-                  <div className={'progress-fill' + (done ? ' done' : '')} style={{ width: `${w.progress ?? 0}%` }} />
-                </div>
-                <small className="progress-label">{w.progress ?? 0}% concluído</small>
+        <section className="shelf">
+          {books.map((b, i) => (
+            <article className="shelf-item" key={b.cls.id} style={{ '--i': i }}>
+              <div className="scene">
+                <Book3D
+                  cls={b.cls}
+                  term={b.term}
+                  caption={captionOf(b)}
+                  onOpen={() => setOpenBook({ classId: b.cls.id })}
+                />
               </div>
-            )
-          })}
-        </div>
+              <div className="caption">
+                <h2>{b.cls.name}</h2>
+                <p>{captionOf(b)}</p>
+              </div>
+            </article>
+          ))}
+        </section>
       )}
 
-      {modal && <WorkFormModal onClose={() => setModal(false)} onCreated={w => nav('work', { workId: w.id })} />}
+      <BookPaperModal
+        book={bookData}
+        onClose={() => setOpenBook(null)}
+        onOpenWork={id => nav('work', { workId: id })}
+      />
+
+      {modal && <WorkFormModal onClose={() => setModal(false)} onCreated={afterCreate} />}
     </div>
   )
 }
