@@ -1214,13 +1214,26 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   font-size: clamp(1.3rem, 4.6vw, 1.55rem);
   letter-spacing: -0.02em;
   line-height: var(--rule);
+  overflow-wrap: break-word;
+  padding-right: 30px; /* nome longo não passa por baixo do botão de fechar */
 }
 .paper-sub { font-size: 0.74rem; letter-spacing: 0.04em; color: var(--ink-soft); line-height: var(--rule); }
 
-.paper-list { list-style: none; margin-top: var(--rule); counter-reset: entregas; }
+/* seções da pauta: Pendentes primeiro, Concluídas depois — o rótulo ocupa
+   uma linha da pauta, como uma anotação de caderno */
+.paper-sec { margin-top: var(--rule); }
+.paper-sec-label {
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase;
+  line-height: var(--rule);
+  color: color-mix(in srgb, var(--cover, var(--accent)), var(--ink) 30%);
+}
+.paper-sec-done .paper-sec-label { color: var(--done); }
+
+.paper-list { list-style: none; counter-reset: entregas; }
 .paper-list li { position: relative; line-height: var(--rule); counter-increment: entregas; }
 
-/* numeração anotada na margem, à esquerda da linha azul */
+/* marca anotada na margem, à esquerda da linha azul: número nas pendentes,
+   ✓ nas concluídas */
 .paper-list li::before {
   content: counter(entregas, decimal-leading-zero);
   position: absolute; top: 0; right: calc(100% + 34px);
@@ -1228,19 +1241,32 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   line-height: var(--rule);
   color: rgba(10, 132, 255, 0.6);
 }
+.paper-list-done li::before {
+  content: '\2713'; /* ✓ */
+  font-size: 0.78rem; letter-spacing: 0;
+  color: var(--done);
+}
 
-/* cada linha é um botão que abre a página de anotações da entrega; nada
-   aqui pode mexer no line-height — o texto precisa seguir na pauta */
+/* cada entrega é um botão em bloco: o título na(s) linha(s) dele e os
+   detalhes na linha de baixo — título e metadados nunca dividem a mesma
+   quebra. Nada aqui pode mexer no line-height: o texto segue na pauta. */
 .paper-list button {
-  width: 100%; padding: 0; text-align: left;
+  display: block; width: 100%; padding: 0; text-align: left;
   font-size: inherit; line-height: inherit; color: inherit;
   border-radius: 4px;
 }
 .paper-list em {
-  font-style: normal; font-weight: 600; font-size: 0.88rem; letter-spacing: -0.005em;
+  display: block;
+  font-style: normal; font-weight: 600; font-size: 0.9rem; letter-spacing: -0.005em;
+  line-height: var(--rule);
+  overflow-wrap: break-word;
 }
-.paper-list li span { font-size: 0.72rem; color: var(--ink-soft); }
-.paper-list button::after {
+.paper-meta {
+  display: block;
+  font-size: 0.7rem; letter-spacing: 0.02em; color: var(--ink-soft);
+  line-height: var(--rule);
+}
+.paper-list em::after {
   content: '\2197'; /* ↗ */
   display: inline-block; margin-left: 7px;
   font-size: 0.68rem; color: var(--accent);
@@ -1253,8 +1279,20 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   text-underline-offset: 4px;
   text-decoration-color: rgba(10, 132, 255, 0.45);
 }
-.paper-list button:is(:hover, :focus-visible)::after { opacity: 1; transform: none; }
+.paper-list button:is(:hover, :focus-visible) em::after { opacity: 1; transform: none; }
 .paper-list button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* concluída: tinta esmaecida e título riscado, como item cortado no caderno */
+.paper-item.is-done em {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+  text-decoration-color: rgba(61, 90, 122, 0.5);
+  text-decoration-thickness: 1px;
+}
+.paper-item.is-done button:is(:hover, :focus-visible) em {
+  color: var(--ink-soft);
+  text-decoration-line: underline line-through;
+}
 
 /* estados da entrega dentro da linha (o <i> herda a pauta) */
 .paper-due, .paper-done { font-style: normal; }

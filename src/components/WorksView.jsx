@@ -4,7 +4,7 @@ import {
   useStore, classInfo, termLabel, ClassSelect, defaultClassId, semestersOfYear,
 } from '../store/StoreProvider'
 import { Modal, Field, EmptyState } from './ui'
-import { formatBR, todayISO, daysUntil, urgency } from '../lib/utils'
+import { formatBR, todayISO, daysUntil, urgency, urgencyLabel } from '../lib/utils'
 
 export const DELIVERY_OPTIONS = ['Microsoft Teams', 'Em aula (em mãos)', 'E-mail', 'Outro']
 
@@ -124,6 +124,31 @@ function Book3D({ cls, term, caption, onOpen }) {
   )
 }
 
+/* Uma entrega na pauta: o título ocupa a(s) linha(s) dele e os detalhes vêm
+   na linha de baixo — em bloco, título e metadados nunca se misturam na
+   mesma quebra. Concluídas ganham ✓ na margem e título riscado. */
+function PaperItem({ w, done, highlight, onOpen }) {
+  const days = daysUntil(w.dueDate)
+  return (
+    <li className={'paper-item' + (highlight ? ' is-new' : '') + (done ? ' is-done' : '')}>
+      <button type="button" onClick={onOpen}>
+        <em>{w.title}</em>
+        <span className="paper-meta">
+          {w.type === 'trabalho' ? 'Trabalho' : 'Tarefa'}
+          {done && (
+            <i className="paper-done"> · {w.type === 'trabalho' ? 'concluído' : 'concluída'} ✓</i>
+          )}
+          {w.dueDate && <> · entrega {formatBR(w.dueDate)}</>}
+          {!done && days != null && days <= 7 && (
+            <i className={'paper-due du-' + urgency(days)}> · {urgencyLabel(days).toLowerCase()}</i>
+          )}
+          {!done && (w.progress ?? 0) > 0 && <> · {w.progress}%</>}
+        </span>
+      </button>
+    </li>
+  )
+}
+
 /* Popup "papel de pauta" do livro: as entregas da aula, uma por linha.
    Fica sempre montado para o <dialog> nativo animar também a saída
    (transition com allow-discrete) — o conteúdo da última aula aberta
@@ -154,14 +179,16 @@ function BookPaperModal({ book, onClose, onOpenWork }) {
   if (!shown) return <dialog className="paper-modal" ref={dlgRef} onClose={onClose} />
 
   const { cls, term, works, highlightId } = shown
+  // As seções já dizem quantas estão pendentes/concluídas — o subtítulo só
+  // resume os tipos
+  const pendentes = works.filter(w => (w.progress ?? 0) < 100)
+  const concluidas = works.filter(w => (w.progress ?? 0) >= 100)
   const nTrab = works.filter(w => w.type === 'trabalho').length
   const nTar = works.length - nTrab
-  const pend = works.filter(w => (w.progress ?? 0) < 100).length
   const parts = []
   if (nTrab) parts.push(`${nTrab} ${nTrab === 1 ? 'trabalho' : 'trabalhos'}`)
   if (nTar) parts.push(`${nTar} ${nTar === 1 ? 'tarefa' : 'tarefas'}`)
-  const sub = parts.join(' · ') +
-    (pend ? ` — ${pend} pendente${pend === 1 ? '' : 's'}` : ' — tudo concluído ✓')
+  const sub = parts.join(' · ')
 
   return (
     <dialog
@@ -181,28 +208,34 @@ function BookPaperModal({ book, onClose, onOpenWork }) {
           <h2 className="paper-title">{cls.name}</h2>
           <p className="paper-sub">{sub}</p>
         </header>
-        <ol className="paper-list">
-          {works.map(w => {
-            const done = (w.progress ?? 0) >= 100
-            const days = daysUntil(w.dueDate)
-            return (
-              <li key={w.id} className={'paper-item' + (w.id === highlightId ? ' is-new' : '')}>
-                <button type="button" onClick={() => onOpenWork(w.id)}>
-                  <em>{w.title}</em>{' '}
-                  <span>
-                    — {w.type === 'trabalho' ? 'Trabalho' : 'Tarefa'}
-                    {done
-                      ? <i className="paper-done"> · concluído ✓</i>
-                      : w.dueDate
-                        ? <i className={'paper-due du-' + urgency(days)}> · entrega {formatBR(w.dueDate)}</i>
-                        : null}
-                    {!done && (w.progress ?? 0) > 0 && ` · ${w.progress}%`}
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ol>
+        {pendentes.length > 0 && (
+          <section className="paper-sec">
+            <h3 className="paper-sec-label">Pendentes ({pendentes.length})</h3>
+            <ol className="paper-list">
+              {pendentes.map(w => (
+                <PaperItem
+                  key={w.id} w={w}
+                  highlight={w.id === highlightId}
+                  onOpen={() => onOpenWork(w.id)}
+                />
+              ))}
+            </ol>
+          </section>
+        )}
+        {concluidas.length > 0 && (
+          <section className="paper-sec paper-sec-done">
+            <h3 className="paper-sec-label">Concluídas ({concluidas.length})</h3>
+            <ol className="paper-list paper-list-done">
+              {concluidas.map(w => (
+                <PaperItem
+                  key={w.id} w={w} done
+                  highlight={w.id === highlightId}
+                  onOpen={() => onOpenWork(w.id)}
+                />
+              ))}
+            </ol>
+          </section>
+        )}
         <p className="paper-foot">— clique numa entrega para abrir as anotações</p>
       </div>
     </dialog>
