@@ -815,6 +815,17 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   column-gap: 36px; row-gap: 84px;
   margin-top: 34px; padding-bottom: 26px;
 }
+/* Nº de colunas por faixa: a capa aberta (-145°) se projeta ~150px à
+   esquerda do livro, então cada coluna precisa de folga real — com a
+   sidebar comendo ~306px, 4 colunas só a partir de 1331px e 3 a partir de
+   1041px; abaixo disso, 2. (≤900px é o modo mobile: styles.mobile.css,
+   carregado depois, assume com 3/2/1 colunas — lá não há hover.) */
+@media (max-width: 1330px) {
+  .shelf { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 901px) and (max-width: 1040px) {
+  .shelf { grid-template-columns: repeat(2, 1fr); }
+}
 
 .shelf-item {
   display: flex; flex-direction: column; align-items: center; position: relative;
@@ -852,7 +863,11 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .shelf-item .scene:focus-within::after { width: 175%; left: 22%; }
 
 @media (hover: hover) {
-  .shelf-item:hover .scene { transform: translateY(-6px); }
+  /* Ao abrir, o livro também escorrega 14px para a direita (lado onde a
+     capa não avança): mais folga para o vizinho da esquerda sem mexer no
+     grid em repouso. */
+  .shelf-item:hover .scene,
+  .shelf-item .scene:focus-within { transform: translateY(-6px) translateX(14px); }
   .shelf-item:hover .scene::after { width: 175%; left: 22%; }
   .shelf-item:hover .caption { transform: translateY(4px); }
 }
@@ -1106,33 +1121,38 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .shelf-item .caption p { margin-top: 2px; font-size: 11.5px; color: var(--ink-soft); }
 
 /* ----- vizinhança: abrir espaço para a capa ----
-   A capa aberta (-145°) avança ~86px além da própria célula, para a
+   A capa aberta (-145°) avança ~150px além da borda do livro, para a
    esquerda. O item imediatamente à esquerda desliza junto (livro + legenda)
-   para a abertura não "colar" no vizinho. O último item de cada linha nunca
-   desliza — seu next sibling no DOM já está na linha de baixo. Os módulos do
-   nth-child acompanham o nº de colunas de cada faixa: mudou o grid, mude
-   aqui também (≥1151px: 4 colunas · 901–1150px: 3 · ≤900px: mobile, sem
-   hover, nada desliza). */
-@media (hover: hover) and (min-width: 1151px) {
+   para a abertura não "colar" no vizinho; somado ao escorregão de +14px do
+   próprio livro aberto, a folga fica garantida em todas as faixas. O último
+   item de cada linha nunca desliza — seu next sibling no DOM já está na
+   linha de baixo. Os módulos do nth-child acompanham o nº de colunas de
+   cada faixa: mudou o grid acima, mude aqui também (≥1331px: 4 colunas ·
+   1041–1330px: 3 · 901–1040px: 2 · ≤900px: mobile, sem hover, nada
+   desliza). */
+@media (hover: hover) and (min-width: 1331px) {
   .shelf-item:has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
-    transform: translateX(-32px);
+    transform: translateX(-56px);
   }
   .shelf-item:nth-child(4n):has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
     transform: none;
   }
 }
-@media (hover: hover) and (min-width: 901px) and (max-width: 1150px) {
-  .shelf { grid-template-columns: repeat(3, 1fr); }
+@media (hover: hover) and (min-width: 1041px) and (max-width: 1330px) {
   .shelf-item:has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
-    transform: translateX(-32px);
+    transform: translateX(-56px);
   }
   .shelf-item:nth-child(3n):has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
     transform: none;
   }
 }
-/* sem hover (mesmo no desktop, ex.: janela estreita): 3 colunas ≤1150px */
-@media (hover: none) and (min-width: 901px) and (max-width: 1150px) {
-  .shelf { grid-template-columns: repeat(3, 1fr); }
+@media (hover: hover) and (min-width: 901px) and (max-width: 1040px) {
+  .shelf-item:has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
+    transform: translateX(-56px);
+  }
+  .shelf-item:nth-child(2n):has(+ .shelf-item .book:is(:hover, :focus-visible)) :is(.scene, .caption) {
+    transform: none;
+  }
 }
 
 /* ----- popup do livro: papel com pauta ----- */
