@@ -13,7 +13,10 @@ import { TbBtn, TEXT_COLORS, HIGHLIGHT_COLORS } from './editorUi'
 // cada render congela/duplica o comportamento do menu.
 const TIPPY_OPTS = {
   duration: 120,
-  appendTo: () => document.body, // escapa do overflow do .editor-scroll
+  // Fora do overflow do .editor-scroll, mas DENTRO da árvore React (#root):
+  // movido para o body, o balão fica fora da raiz onde o React 18 delega os
+  // eventos, e nenhum onClick dos botões dispara (mesmo caso do "+").
+  appendTo: ref => ref.closest('.rich-editor') || document.body,
   placement: 'top',
   maxWidth: 'none',
 }

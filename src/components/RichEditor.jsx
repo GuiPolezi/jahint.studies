@@ -95,10 +95,13 @@ export function SaveStatus({ status }) {
 
 // tippyOptions do "+" de linha vazia: constante de módulo (capturada uma vez
 // pelo plugin). O flip do popper resolve quando não há espaço à esquerda.
+// appendTo: fora do overflow do .editor-scroll, mas DENTRO da árvore React
+// (#root). No body os onClick nunca disparam — o React 18 delega eventos na
+// raiz da aplicação, e o clique num nó movido para o body não passa por ela.
 const FLOAT_OPTS = {
   placement: 'left',
   offset: [0, 6],
-  appendTo: () => document.body,
+  appendTo: ref => ref.closest('.rich-editor') || document.body,
   duration: 100,
 }
 
