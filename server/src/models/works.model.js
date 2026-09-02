@@ -8,7 +8,20 @@ const workDTO = r => ({
   id: r.id, classId: r.classId, title: r.title, type: r.type,
   dueDate: r.dueDate, delivery: r.delivery, progress: r.progress,
   createdAt: r.createdAt,
+  // Painel de Foco: trilha, ritmo e último salvamento de conteúdo das abas
+  focus: r.focus ?? null,
+  focusNote: r.focusNote ?? null,
+  lastNoteAt: r.lastNoteAt ?? null,
 })
+
+// Colunas do trabalho nas consultas — sempre com o alias `w`, porque a
+// subquery de lastNoteAt é correlacionada (MAX(updated_at) das abas dele)
+const WORK_COLS = `
+  w.id, w.class_id AS classId, w.title, w.type, w.due_date AS dueDate,
+  w.delivery, w.progress, UNIX_TIMESTAMP(w.created_at) * 1000 AS createdAt,
+  w.focus_lane AS focus, w.focus_note AS focusNote,
+  (SELECT UNIX_TIMESTAMP(MAX(t.updated_at)) * 1000
+     FROM work_tabs t WHERE t.work_id = w.id) AS lastNoteAt`
 
 async function attachChildren(works) {
   if (!works.length) return works
@@ -35,8 +48,7 @@ async function attachChildren(works) {
 
 export async function listByUser(userId) {
   const works = await q(
-    `SELECT w.id, w.class_id AS classId, w.title, w.type, w.due_date AS dueDate,
-            w.delivery, w.progress, UNIX_TIMESTAMP(w.created_at) * 1000 AS createdAt
+    `SELECT ${WORK_COLS}
      FROM works w
      JOIN classes c ON c.id = w.class_id
      JOIN semesters s ON s.id = c.semester_id
@@ -46,10 +58,7 @@ export async function listByUser(userId) {
 }
 
 export async function getWork(id) {
-  const rows = await q(
-    `SELECT id, class_id AS classId, title, type, due_date AS dueDate, delivery,
-            progress, UNIX_TIMESTAMP(created_at) * 1000 AS createdAt
-     FROM works WHERE id = ?`, [id])
+  const rows = await q(`SELECT ${WORK_COLS} FROM works w WHERE w.id = ?`, [id])
   if (!rows.length) return null
   return (await attachChildren([workDTO(rows[0])]))[0]
 }
@@ -78,7 +87,10 @@ export async function createWork({ classId, title, type, dueDate, delivery }) {
 }
 
 export async function updateWork(id, fields) {
-  const map = { title: 'title', type: 'type', dueDate: 'due_date', delivery: 'delivery', progress: 'progress', classId: 'class_id' }
+  const map = {
+    title: 'title', type: 'type', dueDate: 'due_date', delivery: 'delivery', progress: 'progress',
+    classId: 'class_id', focus: 'focus_lane', focusNote: 'focus_note',
+  }
   const cols = Object.keys(fields).filter(k => map[k])
   if (!cols.length) return getWork(id)
   const sets = cols.map(k => `${map[k]} = ?`).join(', ')
@@ -115,7 +127,9 @@ export async function updateTab(tabId, fields) {
   const map = { title: 'title', content: 'content' }
   const cols = Object.keys(fields).filter(k => map[k])
   if (!cols.length) return
-  const sets = cols.map(k => `${map[k]} = ?`).join(', ')
+  // Só o conteúdo carimba updated_at: é o "última anotação" do Painel de Foco
+  const sets = cols.map(k => `${map[k]} = ?`).join(', ') +
+    ('content' in fields ? ', updated_at = NOW()' : '')
   await q(`UPDATE work_tabs SET ${sets} WHERE id = ?`, [...cols.map(k => fields[k]), tabId])
 }
 

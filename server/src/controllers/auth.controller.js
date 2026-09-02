@@ -9,6 +9,7 @@ import * as Studies from '../models/studies.model.js'
 import * as Notes from '../models/notes.model.js'
 import * as Works from '../models/works.model.js'
 import * as Exams from '../models/exams.model.js'
+import * as FocusBoards from '../models/focusboard.model.js'
 import { assertSemester } from '../models/ownership.js'
 
 export async function register(req, res) {
@@ -89,9 +90,26 @@ export async function setActiveSemester(req, res) {
   res.json({ activeSemesterId: semesterId })
 }
 
+// PUT /api/me/focus-board — rascunho do Painel de Foco e/ou "abrir ao entrar".
+// Aceita um campo ou os dois; responde o painel inteiro atualizado.
+export async function updateFocusBoard(req, res) {
+  const b = req.body
+  const fields = {}
+  if (b.draft !== undefined) {
+    if (typeof b.draft !== 'string') bad('Rascunho inválido.')
+    if (b.draft.length > 200_000) bad('O rascunho deve ter no máximo 200 mil caracteres.')
+    fields.draft = b.draft
+  }
+  if (b.autoOpen !== undefined) {
+    if (typeof b.autoOpen !== 'boolean') bad('"Abrir ao entrar" deve ser verdadeiro ou falso.')
+    fields.autoOpen = b.autoOpen ? 1 : 0
+  }
+  res.json({ focusBoard: await FocusBoards.update(req.userId, fields) })
+}
+
 // GET /api/me/data — árvore completa no formato do store do frontend
 export async function bootstrap(req, res) {
-  const [user, years, semesters, classes, notes, works, exams] = await Promise.all([
+  const [user, years, semesters, classes, notes, works, exams, focusBoard] = await Promise.all([
     Users.findById(req.userId),
     Studies.listYears(req.userId),
     Studies.listSemesters(req.userId),
@@ -99,11 +117,12 @@ export async function bootstrap(req, res) {
     Notes.listByUser(req.userId),
     Works.listByUser(req.userId),
     Exams.listByUser(req.userId),
+    FocusBoards.getByUser(req.userId),
   ])
   res.json({
     user: Users.toUserDTO(user),
     data: {
-      years, semesters, classes, notes, works, exams,
+      years, semesters, classes, notes, works, exams, focusBoard,
       activeSemesterId: user?.active_semester_id ?? null,
     },
   })

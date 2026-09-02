@@ -188,9 +188,17 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
    do .btn-primary; aqui só muda a geometria. O ::before com espaço de largura
    zero cria a linha de texto que dá a altura do botão: sem ele o SVG (menor
    que a linha) deixaria o pill 2–3px mais baixo que o botão com texto ao lado. */
-.btn-icon-only { gap: 0; padding-left: 28px; padding-right: 28px; }
+.btn-icon-only { gap: 0; padding-left: 28px; padding-right: 28px; position: relative; }
 .btn-icon-only::before { content: '\200B'; }
 .btn-icon-only svg { flex-shrink: 0; }
+/* Ponto de alerta (há entrega atrasada) no botão ⠿ do Painel de Foco. O
+   ::before já é o espaço que dá altura ao pill — o ponto vai no ::after. */
+.btn-icon-only.has-alert::after {
+  content: ''; position: absolute; top: 7px; right: 9px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--late);
+  box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(185, 28, 28, 0.6);
+}
 
 .btn-danger {
   display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px;
@@ -1366,7 +1374,265 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   .hardcover_front, .book .page > li, .book .hint,
   .paper-modal, .paper-modal::backdrop { transition-duration: 0.01ms; }
   .paper-item.is-new button { animation: none; }
+  .fb-pop { animation: none; }
+  .fb-switch-track, .fb-switch-track::after { transition: none; }
 }
+
+/* ----- Painel de Foco (botão ⠿ de Trabalhos) -----
+   Reusa .paper-modal (vidro, transição de entrada/saída, backdrop, trava de
+   rolagem e tamanho no celular); aqui só o tamanho no desktop e o miolo:
+   cabeçalho → briefing → [ rascunho | panorama ]. */
+.fb-modal {
+  --rule: 28px;      /* passo da pauta do rascunho */
+  --margin-x: 34px;  /* linha de margem do rascunho */
+  width: min(980px, calc(100vw - 40px));
+  height: min(820px, 90dvh);
+  max-height: 90dvh;
+}
+
+.fb-head {
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  padding: 18px 60px 12px 22px; /* o × fica no canto direito */
+}
+.fb-head-icon {
+  width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0;
+  display: grid; place-items: center; color: #fff;
+  background: linear-gradient(180deg, #56c8ff, var(--accent));
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.6), 0 3px 10px rgba(10,132,255,0.35);
+}
+.fb-head-text { flex: 1; min-width: 0; }
+.fb-title { font-size: 20px; font-weight: 800; letter-spacing: -0.4px; line-height: 1.15; }
+.fb-sub-title { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+
+/* interruptor "Abrir ao entrar", estilo iOS */
+.fb-switch {
+  display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
+  cursor: pointer; user-select: none; position: relative;
+}
+.fb-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.fb-switch-track {
+  position: relative; width: 36px; height: 21px; border-radius: 999px;
+  background: rgba(120,160,200,0.35);
+  box-shadow: inset 0 1px 3px rgba(31,87,148,0.25);
+  transition: background 0.2s ease;
+}
+.fb-switch-track::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(31,87,148,0.35);
+  transition: transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.fb-switch input:checked + .fb-switch-track { background: linear-gradient(180deg, #56c8ff, var(--accent)); }
+.fb-switch input:checked + .fb-switch-track::after { transform: translateX(15px); }
+.fb-switch input:focus-visible + .fb-switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fb-switch-label { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+
+/* briefing: as frases, com a barra aqua na lateral */
+.fb-brief {
+  flex-shrink: 0; margin: 0 22px 12px; padding: 10px 14px 10px 16px;
+  border-left: 3px solid var(--accent); border-radius: 6px 14px 14px 6px;
+  background: rgba(255,255,255,0.5);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.9);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.fb-brief-line { display: flex; gap: 8px; font-size: 13.5px; line-height: 1.45; color: var(--ink); }
+.fb-brief-icon { flex-shrink: 0; width: 20px; text-align: center; }
+.fb-brief-text { min-width: 0; }
+.fb-brief-line.is-alert { color: var(--late); font-weight: 600; }
+.fb-brief-line.is-muted { color: var(--ink-soft); }
+.fb-work-link {
+  display: inline; padding: 0 2px; border-radius: 3px; text-align: left;
+  font: inherit; font-weight: 800;
+  color: color-mix(in srgb, var(--cls-color, var(--accent)) 70%, var(--ink) 30%);
+  border-bottom: 2px solid color-mix(in srgb, var(--cls-color, var(--accent)) 45%, transparent);
+  transition: background 0.15s ease;
+}
+.fb-work-link:hover { background: color-mix(in srgb, var(--cls-color, var(--accent)) 14%, transparent); }
+.fb-work-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* corpo: rascunho | panorama. O segmentado (.fb-tabs) só aparece no celular. */
+.fb-tabs { display: none; }
+.fb-body {
+  flex: 1; min-height: 0; outline: none;
+  display: grid; grid-template-columns: 1.05fr 1fr; grid-template-rows: minmax(0, 1fr); gap: 16px;
+  padding: 0 22px 20px;
+}
+.fb-pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.fb-pane-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 8px; flex-shrink: 0;
+}
+.fb-pane-title {
+  font-size: 11.5px; font-weight: 800; letter-spacing: 0.7px; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* o papel do rascunho: pauta e margem como no popup do livro; com
+   background-attachment: local as linhas rolam junto com o texto */
+.fb-draft {
+  flex: 1; min-height: 0; width: 100%; resize: none; outline: none;
+  padding: var(--rule) 16px var(--rule) calc(var(--margin-x) + 12px);
+  border: 1px solid rgba(255,255,255,0.9); border-radius: 16px;
+  font-size: 14.5px; line-height: var(--rule); color: var(--ink);
+  background:
+    linear-gradient(90deg,
+      transparent calc(var(--margin-x) - 1px),
+      rgba(10, 132, 255, 0.45) 0,
+      rgba(10, 132, 255, 0.45) var(--margin-x),
+      transparent 0),
+    repeating-linear-gradient(to bottom,
+      transparent 0 calc(var(--rule) - 1px),
+      rgba(80, 150, 210, 0.28) 0 var(--rule)),
+    rgba(255, 255, 255, 0.62);
+  background-attachment: local, local, scroll;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.95), inset 0 0 0 1px rgba(160,200,235,0.25);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink-soft), transparent 45%) transparent;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.fb-draft::placeholder { color: var(--ink-faint); font-style: italic; }
+.fb-draft:focus {
+  border-color: rgba(10,132,255,0.5);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.95), 0 0 0 3px rgba(10,132,255,0.16);
+}
+.fb-draft-foot { margin-top: 6px; font-size: 11.5px; color: var(--ink-faint); font-style: italic; flex-shrink: 0; }
+
+/* panorama: rola sozinho, o papel fica parado */
+.fb-panorama {
+  overflow-y: auto; padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink-soft), transparent 45%) transparent;
+}
+
+.fb-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex-shrink: 0; }
+.fb-stat {
+  padding: 10px 12px; border-radius: 14px; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 2px;
+  background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.85);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.9), 0 2px 8px rgba(31,87,148,0.08);
+}
+.fb-stat-label {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--ink-faint); white-space: nowrap;
+}
+.fb-stat-value { font-size: 24px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.1; }
+.fb-stat.is-warn .fb-stat-value { color: var(--warn); }
+.fb-stat.is-late { border-color: rgba(185,28,28,0.35); background: rgba(224,40,79,0.07); }
+.fb-stat.is-late .fb-stat-value { color: var(--late); }
+.fb-stat.is-ok .fb-stat-value { color: var(--done); font-size: 20px; }
+
+.fb-sub {
+  margin: 14px 0 6px; flex-shrink: 0;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* faixa dos próximos 14 dias: um quadradinho por dia, pontos nas cores das
+   matérias que têm entrega naquele dia */
+.fb-strip { list-style: none; display: grid; grid-template-columns: repeat(14, 1fr); gap: 3px; flex-shrink: 0; }
+.fb-day {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 5px 0 4px; min-height: 52px; border-radius: 9px;
+  background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.7);
+  color: var(--ink-soft);
+}
+.fb-day.is-weekend { background: rgba(120,160,200,0.12); }
+.fb-day.has-due { background: rgba(255,255,255,0.75); }
+.fb-day.is-today {
+  border-color: var(--accent); background: rgba(10,132,255,0.10);
+  box-shadow: 0 0 0 2px rgba(10,132,255,0.25);
+}
+.fb-day.is-today .fb-day-num { color: var(--accent-deep); }
+.fb-day-dow { font-size: 9.5px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase; color: var(--ink-faint); }
+.fb-day-num { font-size: 12.5px; font-weight: 800; line-height: 1; color: var(--ink); }
+.fb-day-dots { display: flex; align-items: center; gap: 2px; height: 10px; }
+.fb-day-dots i { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.85); }
+.fb-day-dots small { font-size: 9px; font-weight: 800; color: var(--ink-soft); }
+
+/* trilhas de foco */
+.fb-lanes { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.fb-lane-head {
+  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-bottom: 4px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.fb-lane-emoji { font-size: 13px; }
+.fb-lane-count { color: var(--ink-faint); font-weight: 700; }
+.fb-lane-hint { font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-faint); }
+.fb-lane-empty { font-size: 12.5px; font-style: italic; color: var(--ink-faint); padding: 2px 0 2px 10px; }
+.lane-none .fb-lane-head { color: var(--ink-faint); }
+
+.fb-rows { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.fb-row {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 8px 10px; border-radius: 12px;
+  background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.8);
+  border-left: 3px solid var(--cls-color, var(--accent));
+  transition: background 0.15s ease;
+}
+.fb-row:hover { background: rgba(255,255,255,0.78); }
+.fb-row-main { flex: 1; min-width: 0; }
+.fb-row-title {
+  display: block; width: 100%; padding: 0; text-align: left;
+  font-size: 13.5px; font-weight: 700; line-height: 1.3; color: var(--ink);
+  overflow-wrap: anywhere; border-radius: 4px;
+}
+.fb-row-title:hover {
+  color: var(--accent-deep); text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-color: rgba(10,132,255,0.45);
+}
+.fb-row-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fb-row-meta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 9px;
+  margin-top: 3px; font-size: 11.5px; color: var(--ink-soft);
+}
+.fb-row-class { font-weight: 700; color: color-mix(in srgb, var(--cls-color, var(--accent)) 70%, var(--ink) 30%); }
+.fb-row-due.du-soon { color: var(--soon); }
+.fb-row-due.du-warn { color: var(--warn); font-weight: 700; }
+.fb-row-due.du-urgent, .fb-row-due.du-today { color: var(--urgent); font-weight: 700; }
+.fb-row-due.du-late { color: var(--late); font-weight: 800; }
+.fb-row-bar { display: inline-flex; align-items: center; gap: 5px; }
+.fb-row-bar .progress-track { display: inline-block; width: 54px; height: 6px; }
+.fb-row-bar .progress-fill { display: block; }
+.fb-row-note { color: var(--ink-faint); }
+.fb-row-rhythm { font-style: italic; color: var(--accent-deep); }
+
+/* pill da trilha (abre o seletor) */
+.fb-row-pick { flex-shrink: 0; position: relative; }
+.fb-lane-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px 4px 9px; border-radius: 999px; white-space: nowrap;
+  font-size: 11.5px; font-weight: 700; color: var(--ink-soft);
+  background: rgba(255,255,255,0.7); border: 1px solid rgba(160,200,235,0.6);
+  box-shadow: var(--shadow-soft);
+  transition: all 0.15s ease;
+}
+.fb-lane-pill:hover { background: #fff; color: var(--ink); }
+.fb-lane-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fb-lane-pill.lane-now { color: var(--accent-deep); background: rgba(10,132,255,0.13); border-color: rgba(10,132,255,0.35); }
+.fb-lane-pill.lane-steady { color: #6b3fb5; background: rgba(191,90,242,0.12); border-color: rgba(191,90,242,0.35); }
+.fb-lane-pill.lane-hold { color: var(--ink-faint); }
+
+/* seletor de trilha: centralizado no dialog (o backdrop-filter do .paper-modal
+   é o bloco de referência do position: fixed), por cima da rolagem do panorama */
+.fb-pop {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 21;
+  width: min(300px, calc(100% - 32px)); padding: 9px;
+  display: flex; flex-direction: column; gap: 2px;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.9); border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(10,50,90,0.3);
+  animation: popIn 0.18s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.fb-pop .tb-menu-item { align-items: flex-start; }
+.fb-pop .tb-menu-item.active::after { content: '\2713'; margin-left: auto; color: var(--accent-deep); }
+.fb-pop-emoji { font-size: 15px; line-height: 1.2; }
+.fb-pop-lane { display: flex; flex-direction: column; gap: 1px; }
+.fb-pop-lane b { font-weight: 700; }
+.fb-pop-lane small { font-size: 11px; font-weight: 500; color: var(--ink-faint); }
+.fb-pop-note { display: flex; flex-direction: column; gap: 4px; padding: 2px 4px 4px; }
+.fb-pop-note input { width: 100%; padding: 7px 10px; font-size: 13px; }
+.fb-pop-clear { color: var(--ink-faint); }
 
 .type-badge {
   padding: 3px 11px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.3px;

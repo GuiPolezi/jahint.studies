@@ -59,6 +59,21 @@ export function urgencyLabel(days) {
   return `Faltam ${days} dias`
 }
 
+// Dias passados desde um carimbo (ms) — 0 = hoje
+export function daysSince(ts) {
+  if (!ts) return null
+  return -daysUntil(toISO(new Date(ts)))
+}
+
+// "hoje" / "ontem" / "há N dias" — para carimbos no passado (última anotação…)
+export function agoLabel(ts) {
+  const days = daysSince(ts)
+  if (days == null) return ''
+  if (days <= 0) return 'hoje'
+  if (days === 1) return 'ontem'
+  return `há ${days} dias`
+}
+
 export function formatBytes(n) {
   if (n == null) return ''
   if (n < 1024) return `${n} B`

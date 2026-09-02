@@ -6,8 +6,12 @@ import RichEditor, { useAutosaveContent, SaveStatus } from './RichEditor'
 import { formatBR } from '../lib/utils'
 import { DELIVERY_OPTIONS } from './WorksView'
 
-function TabEditor({ tab }) {
-  const { initial, status, onChange } = useAutosaveContent('tab', tab.id)
+function TabEditor({ tab, workId }) {
+  const { touchWorkNote } = useStore()
+  // Cada gravação vira "anotado hoje" no Painel de Foco
+  const { initial, status, onChange } = useAutosaveContent('tab', tab.id, {
+    onSaved: () => touchWorkNote(workId),
+  })
   return (
     <div className="tab-editor">
       <div className="tab-editor-status"><SaveStatus status={status} /></div>
@@ -200,7 +204,7 @@ export default function WorkDetail({ workId }) {
           ))}
           <button className="work-tab add" onClick={addTab} title="Nova aba de anotações"><Plus size={14} /></button>
         </div>
-        {activeTab && <TabEditor key={activeTab.id} tab={activeTab} />}
+        {activeTab && <TabEditor key={activeTab.id} tab={activeTab} workId={work.id} />}
 
         <CollapsibleFiles
           key={work.id} /* reseta a barra ao navegar entre trabalhos, como na aula */

@@ -94,6 +94,7 @@ export const api = {
     return post('/me/avatar', fd).then(r => ({ user: fixUser(r.user) }))
   },
   setActiveSemester: semesterId => put('/me/active-semester', { semesterId }),
+  updFocusBoard: changes => put('/me/focus-board', changes),  // { draft?, autoOpen? } → { focusBoard }
   bootstrap: () => get('/me/data')
     .then(r => ({ ...r, user: fixUser(r.user) })),         // → { user, data } no formato do store
 

@@ -37,7 +37,9 @@ async function main() {
 
   // Remove linhas de comentário e executa statement por statement,
   // para dar mensagens de erro claras.
-  // O ALTER TABLE da FK de active_semester_id falha se já existir — ignorado.
+  // ALTER TABLE que já foi aplicado (FK de active_semester_id, colunas das
+  // migrações incrementais) falha com "duplicado" — ignorado, para o script
+  // poder rodar quantas vezes for preciso.
   const statements = sql
     .split(/\r?\n/)
     .filter(line => !line.trimStart().startsWith('--'))
@@ -50,10 +52,11 @@ async function main() {
     try {
       await conn.query(stmt)
     } catch (err) {
-      const isDuplicateFk =
+      const alreadyApplied =
         stmt.startsWith('ALTER TABLE') &&
-        ['ER_FK_DUP_NAME', 'ER_DUP_KEY', 'ER_DUP_KEYNAME', 'ER_CANT_CREATE_TABLE'].includes(err.code)
-      if (isDuplicateFk) continue // já aplicado em execução anterior
+        ['ER_FK_DUP_NAME', 'ER_DUP_KEY', 'ER_DUP_KEYNAME', 'ER_CANT_CREATE_TABLE', 'ER_DUP_FIELDNAME']
+          .includes(err.code)
+      if (alreadyApplied) continue // já aplicado em execução anterior
       console.error('\nFalha no statement:\n', stmt.slice(0, 200), '\n')
       throw err
     }

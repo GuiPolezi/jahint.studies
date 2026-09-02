@@ -94,6 +94,10 @@ CREATE TABLE IF NOT EXISTS works (
   due_date   DATE         NULL,
   delivery   VARCHAR(80)  NULL,
   progress   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  -- Painel de Foco: trilha (foco agora / em seguida / aos poucos / em espera)
+  -- e ritmo em texto livre ("fins de semana"). Chaves no DTO: focus, focusNote.
+  focus_lane ENUM('now','next','steady','hold') NULL,
+  focus_note VARCHAR(120) NULL,
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_works_class FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
   INDEX idx_works_class (class_id)
@@ -113,6 +117,9 @@ CREATE TABLE IF NOT EXISTS work_tabs (
   title    VARCHAR(120) NOT NULL,
   position TINYINT      NOT NULL DEFAULT 0,
   content  LONGTEXT     NULL,    -- JSON do editor TipTap
+  -- Último salvamento de CONTEÚDO (definido pelo model, sem ON UPDATE: renomear
+  -- a aba não conta como anotação). Base do "última anotação" do Painel de Foco.
+  updated_at DATETIME   NULL,
   CONSTRAINT fk_tabs_work FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE,
   INDEX idx_tabs_work (work_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -138,3 +145,26 @@ CREATE TABLE IF NOT EXISTS exams (
   CONSTRAINT fk_exams_class FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
   INDEX idx_exams_class (class_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Painel de Foco: o rascunho permanente de organização, um por usuário.
+-- Fica fora de users para não engordar o SELECT * de toda requisição.
+-- updated_at só muda quando o rascunho muda (o interruptor "abrir ao entrar"
+-- não conta) — é o "Editado em" mostrado no painel.
+CREATE TABLE IF NOT EXISTS focus_boards (
+  user_id    CHAR(24)   NOT NULL PRIMARY KEY,
+  draft      MEDIUMTEXT NULL,
+  auto_open  TINYINT(1) NOT NULL DEFAULT 1,
+  updated_at DATETIME   NULL,
+  CONSTRAINT fk_focus_boards_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Migrações incrementais (bancos criados antes destas colunas existirem).
+-- Um ADD COLUMN por statement: cada um é idempotente sozinho — o migrate.js
+-- ignora "coluna duplicada" (ER_DUP_FIELDNAME) em ALTER TABLE, porque o MySQL 8
+-- não tem ADD COLUMN IF NOT EXISTS. Em banco novo as colunas já vêm do CREATE
+-- e estes statements são pulados.
+-- ---------------------------------------------------------------------------
+ALTER TABLE works ADD COLUMN focus_lane ENUM('now','next','steady','hold') NULL;
+ALTER TABLE works ADD COLUMN focus_note VARCHAR(120) NULL;
+ALTER TABLE work_tabs ADD COLUMN updated_at DATETIME NULL;

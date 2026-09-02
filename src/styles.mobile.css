@@ -563,6 +563,29 @@
   .slot-row { flex-wrap: wrap; gap: 7px; }
   .slot-row select { flex: 1 1 100%; }
   .slot-row input { flex: 1; }
+
+  /* Painel de Foco: uma metade por vez — o segmentado troca entre Panorama e
+     Rascunho. O interruptor "abrir ao entrar" desce para a linha de baixo. */
+  .fb-modal { height: 90dvh; }
+  .fb-head { flex-wrap: wrap; padding: 16px 56px 10px 16px; gap: 10px 12px; }
+  .fb-switch { order: 3; flex-basis: 100%; }
+  .fb-brief { margin: 0 16px 10px; padding: 9px 12px 9px 13px; }
+  .fb-brief-line { font-size: 13px; }
+  .fb-tabs {
+    display: flex; flex-shrink: 0; margin: 0 16px 10px; padding: 3px;
+    border-radius: 999px; background: rgba(120,160,200,0.18);
+  }
+  .fb-tabs button {
+    flex: 1; padding: 7px; border-radius: 999px;
+    font-size: 13px; font-weight: 700; color: var(--ink-soft);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .fb-tabs button[aria-selected='true'] { background: #fff; color: var(--ink); box-shadow: 0 2px 8px rgba(31,87,148,0.15); }
+  .fb-body { grid-template-columns: 1fr; padding: 0 16px 16px; }
+  .fb-body.show-panorama .fb-draft-pane,
+  .fb-body.show-rascunho .fb-panorama { display: none; }
+  /* 16px é o limiar do iOS: abaixo disso o Safari dá zoom ao focar o campo */
+  .fb-draft { font-size: 16px; }
 }
 
 /* ============================================================
@@ -621,6 +644,17 @@
   .paper-modal { --margin-x: 44px; width: calc(100vw - 24px); max-height: 88dvh; }
   .paper-body { padding-right: 22px; padding-left: calc(var(--margin-x) + 18px); }
   .paper-list li::before { right: calc(100% + 26px); }
+
+  /* Painel de Foco em telefone: margem do rascunho mais estreita (a regra de
+     .paper-modal acima venceria a do desktop), 14 dias em duas linhas de 7 e
+     números mais compactos */
+  .fb-modal { --margin-x: 28px; height: 88dvh; }
+  .fb-strip { grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .fb-stat { padding: 8px 10px; }
+  .fb-stat-value { font-size: 20px; }
+  .fb-stat.is-ok .fb-stat-value { font-size: 17px; }
+  .fb-row { flex-wrap: wrap; }
+  .fb-row-pick { flex-basis: 100%; display: flex; justify-content: flex-end; }
 
   .members-chips { gap: 6px; }
   /* Título do trabalho é um <input>: quanto menor a fonte, mais texto

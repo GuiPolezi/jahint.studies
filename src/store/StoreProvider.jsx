@@ -9,9 +9,12 @@ const EMPTY = {
   semesters: [],    // { id, yearId, number }
   classes: [],      // { id, semesterId, name, professor, color, slots: [{day, start, end}] }
   notes: [],        // { id, classId, title, date, updatedAt, attachments }  (conteúdo carregado sob demanda)
-  works: [],        // { id, classId, title, type, dueDate, delivery, members, progress, tabs, attachments, createdAt }
+  works: [],        // { id, classId, title, type, dueDate, delivery, members, progress, tabs, attachments, createdAt,
+                    //   focus ('now'|'next'|'steady'|'hold'|null), focusNote, lastNoteAt (ms|null) }
   exams: [],        // { id, classId, label, date, time, topics }
   activeSemesterId: null,
+  // Painel de Foco: rascunho permanente + "abrir ao entrar" (um por usuário)
+  focusBoard: { draft: '', autoOpen: true, updatedAt: null },
 }
 
 export const DEFAULT_WORK_TABS = ['Descrição', 'Rascunho', 'Desenvolvimento']
@@ -249,6 +252,11 @@ export function StoreProvider({ user, initialData, onLogout, onUserChanged, chil
         patch(d => ({ ...d, works: d.works.map(w => (w.id === id ? { ...w, ...changes } : w)) }))
         queueSync(`work:${id}`, changes, merged => api.updWork(id, merged))
       },
+      // O editor acabou de gravar o conteúdo de uma aba: o "última anotação"
+      // do Painel de Foco acompanha sem recarregar (o servidor carimba a aba)
+      touchWorkNote(workId) {
+        patch(d => ({ ...d, works: d.works.map(w => (w.id === workId ? { ...w, lastNoteAt: Date.now() } : w)) }))
+      },
       async delWork(id) {
         const res = await run(api.delWork(id))
         if (res) patch(d => ({ ...d, works: d.works.filter(w => w.id !== id) }))
@@ -322,6 +330,16 @@ export function StoreProvider({ user, initialData, onLogout, onUserChanged, chil
       async delExam(id) {
         const res = await run(api.delExam(id))
         if (res) patch(d => ({ ...d, exams: d.exams.filter(e => e.id !== id) }))
+      },
+
+      // ---------- painel de foco ----------
+      // Otimista; quem digita o rascunho faz o próprio debounce e só chama
+      // aqui no salvamento (patch por tecla re-renderizaria a estante inteira)
+      async updFocusBoard(changes) {
+        patch(d => ({ ...d, focusBoard: { ...d.focusBoard, ...changes } }))
+        const res = await run(api.updFocusBoard(changes))
+        if (res) patch(d => ({ ...d, focusBoard: { ...d.focusBoard, updatedAt: res.focusBoard.updatedAt } }))
+        return res
       },
 
       // ---------- perfil ----------

@@ -7,6 +7,8 @@ import { decodeFileName } from '../config/uploads.js'
 import { assertClass, assertWork, assertWorkTab, getAttachment } from '../models/ownership.js'
 
 const WORK_TYPES = ['tarefa', 'trabalho']
+// Trilhas do Painel de Foco (null = sem trilha)
+const FOCUS_LANES = ['now', 'next', 'steady', 'hold']
 
 export async function list(req, res) {
   res.json({ works: await Works.listByUser(req.userId) })
@@ -44,6 +46,11 @@ export async function update(req, res) {
   if (b.dueDate !== undefined) fields.dueDate = optDate(b.dueDate, 'data de entrega')
   if (b.delivery !== undefined) fields.delivery = optString(b.delivery, 'forma de entrega', { max: 80 })
   if (b.progress !== undefined) fields.progress = reqInt(b.progress, 'progresso', { min: 0, max: 100 })
+  if (b.focus !== undefined) {
+    if (b.focus !== null && !FOCUS_LANES.includes(b.focus)) bad('Trilha de foco inválida.')
+    fields.focus = b.focus
+  }
+  if (b.focusNote !== undefined) fields.focusNote = optString(b.focusNote, 'ritmo', { max: 120 })
   if (b.classId !== undefined) {
     await assertClass(req.userId, b.classId)
     fields.classId = b.classId

@@ -4,6 +4,7 @@ import {
   useStore, classInfo, termLabel, ClassSelect, defaultClassId, semestersOfYear,
 } from '../store/StoreProvider'
 import { Modal, Field, EmptyState } from './ui'
+import FocusBoardModal from './FocusBoard'
 import { formatBR, todayISO, daysUntil, urgency, urgencyLabel } from '../lib/utils'
 
 export const DELIVERY_OPTIONS = ['Microsoft Teams', 'Em aula (em mãos)', 'E-mail', 'Outro']
@@ -242,9 +243,25 @@ function BookPaperModal({ book, onClose, onOpenWork }) {
   )
 }
 
+// Abertura automática do Painel de Foco: uma vez por carga da página, por
+// usuário (trocar de conta na mesma aba não engole a abertura do próximo).
+// Ir a um trabalho e voltar remonta esta view, mas não reabre o painel.
+const autoOpenedFor = new Set()
+
 export default function WorksView() {
-  const { data, nav, route } = useStore()
+  const { data, nav, route, user } = useStore()
   const [modal, setModal] = useState(false)
+  const [boardOpen, setBoardOpen] = useState(false)
+
+  useEffect(() => {
+    if (autoOpenedFor.has(user.id)) return
+    if (!data.focusBoard.autoOpen || data.works.length === 0) return
+    autoOpenedFor.add(user.id)
+    setBoardOpen(true)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ponto vermelho no botão ⠿: há entrega pendente atrasada
+  const hasLate = data.works.some(w => (w.progress ?? 0) < 100 && w.dueDate && daysUntil(w.dueDate) < 0)
   // Livro aberto no popup: { key (bookKey), highlightId? } — highlightId
   // marca a entrega recém-criada dentro do papel
   const [openBook, setOpenBook] = useState(null)
@@ -348,9 +365,15 @@ export default function WorksView() {
               setModal(true)
             }}
           ><Plus size={16} /> Novo trabalho</button>
-          {/* Nova função (em construção): por enquanto só o visual — o botão
-              ainda não tem ação. Mesmo estilo do "Novo trabalho", só com ícone. */}
-          <button type="button" className="btn-primary btn-icon-only" aria-label="Nova função" title="Em breve">
+          {/* Painel de Foco: rascunho permanente + panorama dos trabalhos.
+              Mesmo estilo do "Novo trabalho", só com ícone. */}
+          <button
+            type="button"
+            className={'btn-primary btn-icon-only' + (hasLate ? ' has-alert' : '')}
+            aria-label="Painel de foco"
+            title={hasLate ? 'Painel de foco · há entrega atrasada' : 'Painel de foco'}
+            onClick={() => setBoardOpen(true)}
+          >
             <Grip size={18} />
           </button>
         </div>
@@ -426,6 +449,12 @@ export default function WorksView() {
         book={bookData}
         onClose={() => setOpenBook(null)}
         onOpenWork={id => nav('work', { workId: id })}
+      />
+
+      <FocusBoardModal
+        open={boardOpen}
+        onClose={() => setBoardOpen(false)}
+        onOpenWork={id => { setBoardOpen(false); nav('work', { workId: id }) }}
       />
 
       {modal && <WorkFormModal onClose={() => setModal(false)} onCreated={afterCreate} />}

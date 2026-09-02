@@ -30,13 +30,19 @@ export const clearContentCache = () => contentCache.clear()
 
 // Hook: carrega o conteúdo do servidor e salva automaticamente (debounce).
 // kind: 'note' (anotação de aula) ou 'tab' (aba de trabalho); id: o id dela.
-export function useAutosaveContent(kind, id) {
+// onSaved (opcional): chamado depois de cada gravação bem-sucedida.
+export function useAutosaveContent(kind, id, { onSaved } = {}) {
   const cacheKey = `${kind}:${id}`
   const [initial, setInitial] = useState(() =>
     contentCache.has(cacheKey) ? contentCache.get(cacheKey) : undefined) // undefined = carregando
   const [status, setStatus] = useState('idle')
   const timer = useRef(null)
   const pending = useRef(null)
+  // Callback numa ref: quem chama passa uma arrow nova a cada render, e se ela
+  // entrasse nas deps de `save` o efeito de flush abaixo rodaria o cleanup a
+  // cada re-render — viraria um PUT por tecla em vez de um por pausa.
+  const onSavedRef = useRef(onSaved)
+  onSavedRef.current = onSaved
 
   const save = useCallback(
     json => (kind === 'note' ? api.updNote(id, { content: json }) : api.updTab(id, { content: json })),
@@ -63,7 +69,8 @@ export function useAutosaveContent(kind, id) {
     if (!timer.current) return
     clearTimeout(timer.current)
     timer.current = null
-    if (pending.current !== null) save(pending.current).catch(() => {})
+    if (pending.current !== null)
+      save(pending.current).then(() => onSavedRef.current?.()).catch(() => {})
   }, [save])
 
   const onChange = useCallback(json => {
@@ -77,6 +84,7 @@ export function useAutosaveContent(kind, id) {
         await save(json)
         pending.current = null
         setStatus('saved')
+        onSavedRef.current?.()
       } catch {
         setStatus('error')
       }
