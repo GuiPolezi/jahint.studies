@@ -1185,8 +1185,10 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   color: var(--ink);
   border: 1px solid var(--glass-border); border-top-color: #fff;
   border-radius: 24px; overflow: hidden;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(28px) saturate(1.5); -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  /* Quase opaco: com 0.55 o fundo aqua atravessava e o texto perdia contraste.
+     O vidro fica só na borda e na sombra; o miolo é papel. */
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(1.25); -webkit-backdrop-filter: blur(20px) saturate(1.25);
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.95),
     0 40px 90px rgba(20, 70, 120, 0.35),
@@ -1219,8 +1221,9 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   .paper-modal[open]::backdrop { opacity: 0; }
 }
 
-/* a folha: pauta desenhada no fundo; background-attachment: local faz as
-   linhas rolarem junto com o texto */
+/* a folha: papel creme bem claro e opaco, com a pauta desenhada por cima;
+   background-attachment: local faz as linhas rolarem junto com o texto
+   (a cor do papel fica parada) */
 .paper-body {
   flex: 1; min-height: 0; overflow-y: auto;
   padding: calc(var(--rule) * 2) 40px calc(var(--rule) * 1.5) calc(var(--margin-x) + 24px);
@@ -1232,8 +1235,9 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
       transparent 0),
     repeating-linear-gradient(to bottom,
       transparent 0 calc(var(--rule) - 1px),
-      rgba(80, 150, 210, 0.28) 0 var(--rule));
-  background-attachment: local, local;
+      rgba(80, 150, 210, 0.3) 0 var(--rule)),
+    linear-gradient(180deg, #fffefa, #fcfaf3);
+  background-attachment: local, local, scroll;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--ink-soft), transparent 45%) transparent;
 }
@@ -1317,15 +1321,17 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
 .paper-list button:is(:hover, :focus-visible) em::after { opacity: 1; transform: none; }
 .paper-list button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* concluída: tinta esmaecida e título riscado, como item cortado no caderno */
+/* concluída: título riscado, como item cortado no caderno. A tinta é a
+   "soft" (não a "faint"): riscado já diz que acabou, e o texto precisa
+   continuar legível sobre o papel. */
 .paper-item.is-done em {
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   text-decoration: line-through;
-  text-decoration-color: rgba(61, 90, 122, 0.5);
+  text-decoration-color: rgba(61, 90, 122, 0.55);
   text-decoration-thickness: 1px;
 }
 .paper-item.is-done button:is(:hover, :focus-visible) em {
-  color: var(--ink-soft);
+  color: var(--ink);
   text-decoration-line: underline line-through;
 }
 
@@ -1405,6 +1411,10 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   width: min(980px, calc(100vw - 40px));
   height: min(820px, 90dvh);
   max-height: 90dvh;
+  /* O painel continua de vidro translúcido como sempre foi — o miolo opaco
+     e creme é só do papel do livro (.paper-body). */
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(28px) saturate(1.5); -webkit-backdrop-filter: blur(28px) saturate(1.5);
 }
 
 .fb-head {
