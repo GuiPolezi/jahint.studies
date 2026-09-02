@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Briefcase, Plus } from 'lucide-react'
+import { Briefcase, Grip, Plus } from 'lucide-react'
 import {
   useStore, classInfo, termLabel, ClassSelect, defaultClassId, semestersOfYear,
 } from '../store/StoreProvider'
@@ -340,13 +340,20 @@ export default function WorksView() {
           <h1>Trabalhos &amp; Tarefas</h1>
           <p className="view-sub">Tudo o que precisa ser entregue, com prazo, grupo, progresso e arquivos.</p>
         </div>
-        <button
-          className="btn-primary"
-          onClick={() => {
-            if (data.classes.length === 0) return alert('Cadastre pelo menos uma aula antes de criar trabalhos (em Meus Estudos).')
-            setModal(true)
-          }}
-        ><Plus size={16} /> Novo trabalho</button>
+        <div className="head-actions">
+          <button
+            className="btn-primary"
+            onClick={() => {
+              if (data.classes.length === 0) return alert('Cadastre pelo menos uma aula antes de criar trabalhos (em Meus Estudos).')
+              setModal(true)
+            }}
+          ><Plus size={16} /> Novo trabalho</button>
+          {/* Nova função (em construção): por enquanto só o visual — o botão
+              ainda não tem ação. Mesmo estilo do "Novo trabalho", só com ícone. */}
+          <button type="button" className="btn-primary btn-icon-only" aria-label="Nova função" title="Em breve">
+            <Grip size={18} />
+          </button>
+        </div>
       </header>
 
       <div className="filter-bar">

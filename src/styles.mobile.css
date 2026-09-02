@@ -600,6 +600,10 @@
   .view-head > .btn-ghost { width: 100%; justify-content: center; }
   .head-actions { width: 100%; }
   .head-actions > button { flex: 1; justify-content: center; }
+  /* Pill só com ícone (Trabalhos): mantém a largura natural e deixa o
+     "Novo trabalho" ocupar o resto da linha — esticado, seria um ícone
+     perdido no meio de um botão largo */
+  .head-actions > .btn-icon-only { flex: 0 0 auto; }
 
   /* Dois filtros por linha: em Trabalhos são quatro selects, e um por
      linha empurrava a lista para bem longe do topo. */

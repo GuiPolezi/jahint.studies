@@ -184,6 +184,13 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .btn-ghost.star-on { color: #b58a00; background: rgba(255, 214, 10, 0.25); border-color: rgba(255, 214, 10, 0.5); }
 .btn-sm { padding: 6px 12px; font-size: 12.5px; }
 .btn-block { width: 100%; justify-content: center; }
+/* Pill só com ícone (ex.: cabeçalho de Trabalhos). Herda cor, sombra e hover
+   do .btn-primary; aqui só muda a geometria. O ::before com espaço de largura
+   zero cria a linha de texto que dá a altura do botão: sem ele o SVG (menor
+   que a linha) deixaria o pill 2–3px mais baixo que o botão com texto ao lado. */
+.btn-icon-only { gap: 0; padding-left: 28px; padding-right: 28px; }
+.btn-icon-only::before { content: '\200B'; }
+.btn-icon-only svg { flex-shrink: 0; }
 
 .btn-danger {
   display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px;
