@@ -569,27 +569,18 @@
    7. AUTENTICAÇÃO E PERFIL
    ============================================================ */
 @media (max-width: 900px) {
-  /* height (não min-height) + overflow: sem altura definida o cartão de
-     cadastro, que é alto, era cortado pelo overflow:hidden do body e
-     não havia como rolar até o botão "Criar minha conta". */
+  /* A rolagem do cartão alto (height + overflow-y + margin:auto no cartão)
+     agora é regra base em styles.css — aqui fica só o que é do celular. */
   .auth-wrap {
-    height: 100dvh;
-    min-height: 0;
-    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: calc(env(safe-area-inset-top, 0px) + 16px) 14px calc(env(safe-area-inset-bottom, 0px) + 16px);
-    /* stretch (padrão) + margin auto no cartão: centralização "segura".
-       Com place-items:center o topo de um cartão mais alto que a tela
-       fica inalcançável; com margem automática ela vira 0 quando não há
-       espaço sobrando, e aí o cartão simplesmente rola do topo. */
-    place-items: stretch;
+    scrollbar-gutter: auto; /* barras overlay; não gastar 18px de largura com calha */
   }
   .auth-card {
     width: 100%;
     max-width: 100%;
     padding: 24px 18px;
     border-radius: 24px;
-    margin: auto 0; /* centraliza na vertical sem cortar quando é alto */
   }
   .auth-logo h1 { font-size: 24px; }
   .auth-logo .logo-badge { width: 52px; height: 52px; border-radius: 17px; }
