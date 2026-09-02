@@ -1353,26 +1353,43 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   line-height: var(--rule);
 }
 
+/* Botão de fechar dos popups (papel do livro e Painel de Foco). O X é o
+   ícone do lucide, centrado na grade — o "×" de texto ficava um pouco fora
+   do centro e, girando, parecia escorregar para o lado. Ao passar o mouse o
+   botão "vem à frente": clareia, ganha um halo azul discreto e cresce um
+   pouco; o X só escurece. Ao clicar, afunda. Sem rotação. */
 .paper-close {
   position: absolute; top: 12px; right: 12px; z-index: 2;
-  width: 34px; height: 34px;
+  width: 34px; height: 34px; padding: 0;
+  display: grid; place-items: center;
   border: 1px solid var(--glass-border); border-top-color: #fff;
   border-radius: 50%;
   background: var(--glass);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 4px 10px rgba(31, 87, 148, 0.14);
   color: var(--ink-soft);
-  font-size: 1.05rem; line-height: 1;
-  transition: background 0.3s ease, color 0.3s ease, transform 0.4s var(--ease-book);
+  transition:
+    background 0.28s ease, color 0.28s ease, box-shadow 0.28s ease,
+    transform 0.32s var(--ease-book);
 }
-.paper-close:hover { background: rgba(255, 255, 255, 0.75); color: var(--ink); transform: rotate(90deg); }
+.paper-close svg { display: block; }
+.paper-close:hover {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  transform: scale(1.08);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    0 6px 16px rgba(31, 87, 148, 0.18),
+    0 0 0 4px rgba(10, 132, 255, 0.12);
+}
+.paper-close:active { transform: scale(0.94); transition-duration: 0.1s; }
 .paper-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   .shelf-item { animation: none; }
   .shelf-item .scene, .shelf-item .caption,
   .hardcover_front, .book .page > li, .book .hint,
-  .paper-modal, .paper-modal::backdrop { transition-duration: 0.01ms; }
+  .paper-modal, .paper-modal::backdrop, .paper-close { transition-duration: 0.01ms; }
   .paper-item.is-new button { animation: none; }
   .fb-pop { animation: none; }
   .fb-switch-track, .fb-switch-track::after { transition: none; }

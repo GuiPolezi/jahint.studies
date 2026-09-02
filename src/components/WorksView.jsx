@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Briefcase, Grip, Plus } from 'lucide-react'
+import { Briefcase, Grip, Plus, X } from 'lucide-react'
 import {
   useStore, classInfo, termLabel, ClassSelect, defaultClassId, semestersOfYear,
 } from '../store/StoreProvider'
@@ -202,7 +202,9 @@ function BookPaperModal({ book, onClose, onOpenWork }) {
          então o alvo só é o próprio dialog quando vem do backdrop */
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <button className="paper-close" type="button" aria-label="Fechar lista" onClick={onClose}>×</button>
+      <button className="paper-close" type="button" aria-label="Fechar lista" onClick={onClose}>
+        <X size={16} strokeWidth={2.25} />
+      </button>
       <div className="paper-body" ref={bodyRef}>
         <header>
           <span className="paper-vol">{term}</span>

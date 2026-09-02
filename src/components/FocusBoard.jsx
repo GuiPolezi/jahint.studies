@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, Grip } from 'lucide-react'
+import { ChevronDown, Grip, X } from 'lucide-react'
 import { useStore } from '../store/StoreProvider'
 import { SaveStatus } from './RichEditor'
 import { formatBR, toISO, agoLabel } from '../lib/utils'
@@ -321,7 +321,9 @@ export default function FocusBoardModal({ open, onClose, onOpenWork }) {
       onCancel={e => { if (pickerFor) { e.preventDefault(); setPickerFor(null) } }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <button className="paper-close" type="button" aria-label="Fechar painel" onClick={onClose}>×</button>
+      <button className="paper-close" type="button" aria-label="Fechar painel" onClick={onClose}>
+        <X size={16} strokeWidth={2.25} />
+      </button>
 
       <header className="fb-head">
         <span className="fb-head-icon" aria-hidden="true"><Grip size={18} /></span>
