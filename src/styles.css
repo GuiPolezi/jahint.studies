@@ -829,6 +829,18 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   display: grid; grid-template-columns: repeat(4, 1fr);
   column-gap: 36px; row-gap: 84px;
   margin-top: 34px; padding-bottom: 26px;
+  /* Tempos da abertura, num lugar só. Toda transição da abertura é baseada
+     em tempo (CSS), então dura o mesmo a 60Hz ou 144Hz; o que muda entre
+     máquinas é só quantos quadros cabem dentro dela.
+     --book-open: giro da capa, deslize do livro/vizinho e sombra.
+     --book-intent: "intenção" de hover — o cursor precisa ficar esse tempo
+     sobre o livro para a abertura começar (só na entrada; a saída é
+     imediata). Passar rápido pela estante não dispara abre-fecha em cadeia,
+     e cada inversão de hover no meio do giro encurta a transição seguinte
+     (regra de reversão do CSS) — é isso que parece "rápido e sem
+     suavidade". */
+  --book-open: 1s;
+  --book-intent: 0.08s;
 }
 /* Nº de colunas por faixa: a capa aberta (-145°) se projeta ~150px à
    esquerda do livro, então cada coluna precisa de folga real — com a
@@ -849,10 +861,13 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
      até o grid estourar a página pela direita. Com isso a coluna volta a
      obedecer o 1fr e a legenda corta com reticências. */
   min-width: 0;
-  /* z-index inteiro + transition: ao sair do hover ele decai gradualmente,
-     então o livro ainda fechando não é "cortado" pelos vizinhos */
+  /* Empilhamento: sobe para 10 na hora ao abrir e só volta a 1 quando a
+     capa terminou de fechar, então o livro ainda fechando não é "cortado"
+     pelos vizinhos. É uma troca única (duração 0s + atraso), não uma
+     interpolação: z-index é inteiro, e "z-index 0.8s" virava dez degraus,
+     cada um reordenando as camadas do compositor no meio do giro. */
   z-index: 1;
-  transition: z-index 0.8s linear;
+  transition: z-index 0s linear var(--book-open);
   /* entrada em cascata — o índice (--i) vem inline do React */
   animation: shelf-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   animation-delay: calc(var(--i, 0) * 70ms);
@@ -861,21 +876,32 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   from { opacity: 0; transform: translateY(30px); }
 }
 
-.shelf-item:hover, .shelf-item:focus-within { z-index: 10; }
+.shelf-item:hover, .shelf-item:focus-within { z-index: 10; transition-delay: 0s; }
 
-.shelf-item .scene { position: relative; transition: transform 0.7s var(--ease-book); }
+.shelf-item .scene {
+  position: relative;
+  transition: transform var(--book-open) var(--ease-book);
+  /* Camada própria já em repouso: sem isso o navegador promove o container
+     no primeiro quadro do hover, rasterizando o livro inteiro bem no início
+     do giro (soluço visível justamente na abertura). */
+  will-change: transform;
+}
 .shelf-item .scene:focus-within { transform: translateY(-6px); }
 
-/* sombra elíptica no chão, expande quando o livro abre */
+/* Sombra elíptica no chão, expande quando o livro abre. A geometria "aberta"
+   (175% de largura, centro a 22%) é a de repouso do elemento; o estado
+   fechado (105%, centro a 42%) vem de um transform, que anima no compositor
+   — animar width/left forçava layout + pintura a cada quadro. */
 .shelf-item .scene::after {
-  content: ''; position: absolute; left: 42%; bottom: -22px;
-  width: 105%; height: 20px;
+  content: ''; position: absolute; left: 22%; bottom: -22px;
+  width: 175%; height: 20px;
   background: radial-gradient(ellipse at center, rgba(31, 87, 148, 0.26), transparent 68%);
-  transform: translateX(-50%);
-  transition: width 0.8s var(--ease-book), left 0.8s var(--ease-book);
+  /* -38.57% de 175% = -67.5% da cena: centro em 109.5% - 67.5% = 42% */
+  transform: translateX(-38.57%) scaleX(0.6);
+  transition: transform var(--book-open) var(--ease-book);
   pointer-events: none;
 }
-.shelf-item .scene:focus-within::after { width: 175%; left: 22%; }
+.shelf-item .scene:focus-within::after { transform: translateX(-50%) scaleX(1); }
 
 @media (hover: hover) {
   /* Ao abrir, o livro também escorrega 14px para a direita (lado onde a
@@ -883,8 +909,14 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
      grid em repouso. */
   .shelf-item:hover .scene,
   .shelf-item .scene:focus-within { transform: translateY(-6px) translateX(14px); }
-  .shelf-item:hover .scene::after { width: 175%; left: 22%; }
+  .shelf-item:hover .scene::after { transform: translateX(-50%) scaleX(1); }
   .shelf-item:hover .caption { transform: translateY(4px); }
+  /* intenção de hover (ver --book-intent): livro, sombra, legenda e o
+     vizinho que desliza partem juntos, depois do mesmo atraso */
+  .shelf-item:hover .scene,
+  .shelf-item:hover .scene::after,
+  .shelf-item:hover .caption,
+  .shelf-item:has(+ .shelf-item .book:hover) :is(.scene, .caption) { transition-delay: var(--book-intent); }
 }
 
 /* ----- livro: container ----- */
@@ -895,6 +927,12 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 }
 .book:focus-visible { outline: 2px solid var(--accent); outline-offset: 22px; border-radius: 4px; }
 .book ul { list-style: none; }
+/* Almofada de hover (invisível). Ao abrir, o livro sobe 6px e escorrega 14px
+   para a direita — sem esta área extra, um cursor parado junto à borda
+   esquerda/superior "perdia" o livro no meio do giro e ele fechava de volta
+   (abre-fecha em ~140ms). Também blinda o hover contra imprecisões do
+   hit-test das faces 3D enquanto elas giram. */
+.book::before { content: ''; position: absolute; inset: -8px 0 0 -16px; }
 
 /* ----- cores e faces ----- */
 .hardcover_front li:first-child { background-color: var(--cover); backface-visibility: hidden; }
@@ -946,7 +984,14 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   transform-style: preserve-3d;
 }
 .hardcover_front, .hardcover_back { transform-origin: 0% 100%; }
-.hardcover_front { transition: transform 0.8s var(--ease-book), z-index 0.6s; }
+.hardcover_front {
+  /* z-index: troca única quando a capa cruza os 90° (~31% do giro, medido),
+     para navegadores que não ordenam o contexto 3D por profundidade. Antes
+     era "z-index 0.6s": cem degraus de inteiro — a 144Hz, um por quadro. */
+  transition:
+    transform var(--book-open) var(--ease-book),
+    z-index 0s linear calc(var(--book-open) * 0.31);
+}
 .hardcover_front li:first-child { user-select: none; transform: translateZ(2px); }
 .hardcover_front li:last-child { transform: rotateY(180deg) translateZ(2px); }
 .hardcover_back li:first-child { transform: translateZ(2px); }
@@ -1041,7 +1086,11 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   .book:is(:hover, :focus-visible) > .hardcover_front {
     transform: rotateY(-145deg) translateZ(0);
     z-index: 0;
+    /* intenção de hover (ver --book-intent) — o z-index troca 31% do giro
+       depois de a capa realmente começar a girar */
+    transition-delay: var(--book-intent), calc(var(--book-open) * 0.31 + var(--book-intent));
   }
+  .book:is(:hover, :focus-visible) > .page li { transition-delay: var(--book-intent); }
   .book:is(:hover, :focus-visible) > .page li:nth-child(1) { transform: rotateY(-30deg); transition-duration: 1.5s; }
   .book:is(:hover, :focus-visible) > .page li:nth-child(2) { transform: rotateY(-35deg); transition-duration: 1.8s; }
   .book:is(:hover, :focus-visible) > .page li:nth-child(3) { transform: rotateY(-118deg); transition-duration: 1.6s; }
