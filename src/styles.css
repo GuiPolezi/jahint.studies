@@ -485,7 +485,13 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
      .popover já vira um diálogo centralizado (styles.mobile.css) e este
      offset não se aplica. O seletor composto vence a regra base .popover
      (left: 0), que aparece mais adiante na folha com a mesma especificidade. */
-  .popover.class-menu { left: auto; right: 0; top: 44px; }
+  .popover.class-menu { left: auto; right: 0; top: 44px; transform-origin: top right; }
+  /* Entrada dos popovers só no desktop: no mobile o .popover se centraliza
+     com transform: translate(-50%,-50%), e um keyframe com transform o
+     tiraria do lugar (lá a entrada é só opacidade). */
+  .popover { animation: pop-menu 0.16s cubic-bezier(0.22, 1, 0.36, 1); transform-origin: top left; }
+  /* Nome de matéria longo no cabeçalho não pode empurrar as ações */
+  .class-note-title.as-heading { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 
 /* Coluna esquerda: painel da matéria + atalhos pinados abaixo */
@@ -524,21 +530,142 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   transition: all 0.15s ease;
 }
 .quicknav-btn:hover { background: rgba(10, 132, 255, 0.24); transform: translateY(-1px); }
+/* Página de trabalho: mesmos atalhos da aula (cor, borda e sombra iguais);
+   só o padding lateral encolhe para "Meus Estudos" caber em meia coluna */
+.work-view .quicknav-btn { padding-left: 6px; padding-right: 6px; white-space: nowrap; }
 
-/* Cabeçalho compacto do trabalho: uma linha, título editável como protagonista */
-.work-head { align-items: center; margin-bottom: 10px; }
-.work-head .btn-back { margin-bottom: 0; flex-shrink: 0; }
-.work-head .view-sub { margin-top: 0; min-width: 0; }
-@media (min-width: 901px) {
-  .work-head { flex-wrap: nowrap; gap: 12px; }
-  .work-head .view-sub { flex-wrap: nowrap; overflow: hidden; }
-  /* Nome de matéria longo não pode empurrar o cabeçalho: só o chip é cortado
-     (text-overflow não corta dentro de inline-flex, daí o inline-block) */
-  .work-head .class-chip {
-    display: inline-block; max-width: 200px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
+/* ---------- trabalho: página de anotação ----------
+   Mesmo esqueleto da aula (.class-view / .class-topbar / .class-layout /
+   .class-side / .note-editor-panel): herda desktop, modo documento, mobile e
+   impressão. .work-view é só o namespace desta tela — não entra na cadeia
+   flex do modo documento. */
+.work-side-panel { gap: 12px; padding: 16px 14px 14px; }
+/* Ancoradouro do popover de progresso. Sem backdrop-filter nem transform:
+   ambos virariam containing block do .pop-backdrop (position: fixed), que
+   ficaria confinado ao card em vez de cobrir a tela. */
+.work-side-anchor { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.work-side-top { position: relative; display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; }
+/* Pill da matéria + "Nº Ano · Nº Semestre": na mesma linha quando cabem; com
+   nome longo o termo desce para a linha de baixo, encostado à direita */
+.work-side-chiprow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; padding: 0 2px; }
+.work-side-chiprow .class-chip {
+  display: inline-block; min-width: 0; max-width: 100%; font-size: 11.5px; padding: 3px 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.work-side-term { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--ink-faint); white-space: nowrap; }
+/* Título editável em até duas linhas (textarea que cresce — ver useAutoGrow) */
+.work-side-title {
+  display: block; width: calc(100% + 8px); margin: 0 -4px; resize: none; overflow: hidden;
+  font-size: 21px; font-weight: 800; line-height: 1.2; letter-spacing: -0.4px; color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 3px 6px; outline: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.work-side-title:hover { background: rgba(255, 255, 255, 0.45); }
+.work-side-title:focus { background: rgba(255, 255, 255, 0.8); border-color: rgba(10, 132, 255, 0.4); text-shadow: none; }
+.work-side-sub {
+  padding: 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 10.5px; font-weight: 600; letter-spacing: -0.1px; color: var(--ink-faint);
+}
+.work-side-sub-sep { opacity: 0.6; margin: 0 4px; }
+
+.work-side-body { position: relative; display: flex; flex-direction: column; gap: 18px; }
+.work-side-section { display: flex; flex-direction: column; gap: 9px; }
+/* Progresso mora fora do .work-side-body: no modo documento o corpo rola e
+   encolhe, o rodapé não — prazo e pizza ficam sempre visíveis */
+.work-side-foot { position: relative; flex-shrink: 0; }
+.work-side-head {
+  display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px;
+  font-size: 16px; font-weight: 800; letter-spacing: -0.2px; color: var(--ink-soft);
+}
+.work-side-head span { font-size: 15px; font-weight: 800; }
+
+/* Detalhes: rótulo miúdo + campo em pílula branca */
+.work-side-fields { display: flex; flex-direction: column; gap: 9px; }
+.work-side-fields .field { gap: 3px; min-width: 0; }
+.work-side-fields .field-label { font-size: 11px; font-weight: 700; color: var(--ink-faint); padding-left: 8px; }
+.work-side-fields .field input, .work-side-fields .field select {
+  width: 100%; min-width: 0; border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 600;
+  background: rgba(255, 255, 255, 0.88); border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 3px rgba(31, 87, 148, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.work-side-fields .field input:hover, .work-side-fields .field select:hover { background: #fff; }
+.work-side-fields .field input:focus, .work-side-fields .field select:focus {
+  background: #fff; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.18);
+}
+
+/* Integrantes: chips + "+ Adicionar" tracejado que vira campo no mesmo lugar */
+.work-side-members { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.work-side-members .member-chip {
+  padding: 5px 6px 5px 12px; font-size: 12.5px;
+  animation: chip-in 0.18s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.member-add-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 5px 11px; border-radius: 999px;
+  border: 1.5px dashed rgba(123, 147, 171, 0.55); color: var(--ink-soft); background: rgba(255, 255, 255, 0.35);
+  font-size: 12.5px; font-weight: 700; transition: all 0.15s ease;
+}
+.member-add-chip:hover { border-color: rgba(10, 132, 255, 0.6); color: var(--accent-deep); background: rgba(10, 132, 255, 0.08); }
+.member-add-inline { display: inline-flex; }
+.member-add-inline input {
+  width: 160px; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; outline: none;
+  border: 1px solid rgba(10, 132, 255, 0.45); background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.14);
+  animation: chip-in 0.18s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* Progresso: chip de prazo à esquerda (centrado na altura da pizza), pizza
+   clicável à direita com o % acima */
+.work-side-progress { display: flex; align-items: center; gap: 14px; padding: 2px 2px 0; }
+.work-side-progress .due-chip { font-size: 12.5px; padding: 6px 14px; }
+.due-nodate { background: rgba(255, 255, 255, 0.55); color: var(--ink-faint); border-color: rgba(160, 200, 235, 0.6); }
+.work-pie { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-left: auto; margin-right: 16px; }
+.work-pie-label { font-size: 12.5px; font-weight: 800; color: var(--ink-soft); margin-right: -6px; }
+.work-pie-btn { display: block; width: 56px; height: 56px; padding: 0; border-radius: 50%; transition: transform 0.15s ease, filter 0.15s ease; }
+.work-pie-btn:hover { transform: scale(1.05); filter: brightness(1.03); }
+.work-pie-btn:active { transform: scale(0.98); }
+.work-pie-btn:focus-visible { outline: 3px solid rgba(10, 132, 255, 0.35); outline-offset: 3px; }
+.work-pie-btn svg { display: block; width: 100%; height: 100%; filter: drop-shadow(0 3px 6px rgba(31, 87, 148, 0.22)); }
+.work-pie-track { fill: rgba(120, 160, 200, 0.22); stroke: rgba(255, 255, 255, 0.85); stroke-width: 1; }
+/* O setor é um stroke com pathLength=100: o dashoffset (via style) é o % que falta */
+.work-pie-sector { transition: stroke-dashoffset 0.5s var(--ease-book); }
+.work-pie-gloss { fill: rgba(255, 255, 255, 0.35); pointer-events: none; }
+
+/* Popover do progresso (range 0–100, passo 5) */
+.progress-pop { min-width: 220px; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+.progress-pop-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.progress-pop-head strong { font-size: 15px; font-weight: 800; color: var(--accent-deep); }
+.progress-pop input[type='range'] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+@media (min-width: 901px) {
+  /* Ancorado ao rodapé do card, junto de "Progresso"; no mobile o .popover
+     vira diálogo centralizado (styles.mobile.css) e este offset não se aplica */
+  .popover.progress-pop { top: auto; bottom: 14px; left: 12px; right: 12px; transform-origin: bottom center; }
+}
+
+/* Linha das abas + status de salvamento (na página de trabalho o status mora
+   aqui, não no .note-save-float: com muitas abas ele sobreporia a linha) */
+.work-tabs-bar { display: flex; align-items: center; position: relative; flex-shrink: 0; }
+/* A faixa rola em overflow-x, e overflow recorta a sombra do balão ativo
+   (3px + 10px de blur). O padding dá o espaço da sombra e as margens negativas
+   devolvem o alinhamento — o mesmo truque do mobile. */
+.work-tabs-bar .work-tabs {
+  flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+  margin: -8px -12px -14px -10px; padding: 8px 12px 14px 10px;
+}
+.work-tabs-bar .work-tabs::-webkit-scrollbar { display: none; }
+.work-tabs-bar .work-tab { flex-shrink: 0; }
+.work-tabs-status { flex-shrink: 0; min-width: 56px; padding-left: 12px; text-align: right; }
+
+/* Entrada da tela: sutil e em cascata (card → editor → atalhos). fill-mode
+   BACKWARDS de propósito: com forwards/both o transform final ficaria retido e
+   viraria containing block do .pop-backdrop (position: fixed). */
+@keyframes rise-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes chip-in { from { opacity: 0; transform: scale(0.9); } }
+@keyframes pop-menu { from { opacity: 0; transform: scale(0.96) translateY(-4px); } }
+.work-view .work-side-anchor  { animation: rise-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.work-view .note-editor-panel { animation: rise-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) 60ms backwards; }
+.work-view .class-quicknav    { animation: rise-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) 120ms backwards; }
 
 .class-layout { display: grid; grid-template-columns: 250px 1fr; gap: 14px; align-items: start; }
 @media (max-width: 900px) { .class-layout { grid-template-columns: 1fr; } }
@@ -567,14 +694,6 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 /* Estado do salvamento sobre o canto do editor: não participa do fluxo,
    então o texto começa direto no topo do painel */
 .note-save-float { position: absolute; top: 0; right: 4px; z-index: 5; pointer-events: none; }
-.note-title-input {
-  flex: 1; min-width: 200px; font-size: 19px; font-weight: 800; letter-spacing: -0.3px;
-  border: 1px solid transparent; border-radius: 12px; padding: 7px 10px; background: transparent; outline: none;
-  transition: all 0.15s;
-}
-.note-title-input:hover { background: rgba(255,255,255,0.45); }
-.note-title-input:focus { background: rgba(255,255,255,0.8); border-color: rgba(10,132,255,0.4); }
-.work-title { font-size: 20px; }
 .save-status { font-size: 12px; font-weight: 700; white-space: nowrap; }
 .save-status.saving { color: var(--ink-faint); }
 .save-status.saved { color: var(--done); }
@@ -600,23 +719,6 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   position: relative; padding: 48px 20px;
 }
 
-/* Arquivos anexados (CollapsibleFiles, hoje usados pelos trabalhos):
-   uma linha discreta no rodapé do painel; a lista só aparece quando o
-   usuário expande (empurra o editor, sem overlay) */
-.note-files {
-  display: flex; flex-direction: column; gap: 6px;
-  padding-top: 8px; border-top: 1px solid rgba(160,200,235,0.45);
-}
-.note-files-bar { display: flex; align-items: center; gap: 8px; }
-.note-files-toggle {
-  flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
-  padding: 5px 6px; border-radius: 9px; transition: background 0.15s;
-}
-.note-files-toggle:hover:not(:disabled) { background: rgba(255,255,255,0.5); color: var(--ink); }
-.note-files-toggle:disabled { cursor: default; color: var(--ink-faint); }
-.note-files-toggle svg:last-child { transition: transform 0.2s ease; }
-.note-files .file-list { max-height: 200px; overflow-y: auto; }
 /* O contador de anexos na lista lateral fica na mesma linha da data */
 .note-clip { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
 
@@ -627,7 +729,10 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
    flex/grid reinfla os painéis e o .content volta a rolar. No mobile nada
    disso se aplica: o fluxo em coluna continua o mesmo. */
 @media (min-width: 901px) {
-  .content.content-fill { display: flex; flex-direction: column; }
+  /* overflow visível: no modo documento o .content não rola (a rolagem vive
+     nos painéis), e o overflow padrão recortava as sombras dos atalhos e do
+     card na base e na esquerda da coluna */
+  .content.content-fill { display: flex; flex-direction: column; overflow: visible; }
   .content.content-fill .class-view {
     flex: 1; min-height: 0;
     display: flex; flex-direction: column;
@@ -654,22 +759,36 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
   .content.content-fill .editor-scroll     { flex: 1; min-height: 0; max-height: none; padding: 6px 5px 96px; }
   .content.content-fill .editor-loading    { flex: 1; min-height: 0; }
 
-  /* Modo documento também na tela de trabalho (rota 'work') */
-  .content.content-fill .work-view {
-    flex: 1; min-height: 0;
-    display: flex; flex-direction: column;
-    width: 100%; padding: 10px 6px 12px;
+  /* Trabalho: a identidade fica fixa no topo do card; Detalhes, Integrantes e
+     Progresso rolam por dentro (.work-side-body faz o papel do .notes-list).
+     Sobrando altura, as três seções se distribuem para preencher a coluna. */
+  .content.content-fill .work-side-anchor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .content.content-fill .work-side-body   {
+    flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin;
+    justify-content: space-between; margin: 0 -4px; padding: 2px 4px 0;
   }
-  .content.content-fill .work-notes-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0; }
-  .content.content-fill .tab-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  /* Abas em linha única rolável; padding/margem negativa preservam o brilho
-     do balão ativo (mesmo truque do mobile) */
-  .content.content-fill .work-tabs {
-    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
-    padding: 7px 4px 11px; margin: -7px -4px 3px;
-  }
-  .content.content-fill .work-tabs::-webkit-scrollbar { display: none; }
-  .content.content-fill .work-tab { flex-shrink: 0; }
+  /* Terceiro "item" vazio: com ele o space-between reparte a sobra em duas
+     partes iguais — acima e abaixo de Integrantes — e o Progresso (fixo no
+     rodapé) fica à mesma distância que os outros blocos entre si */
+  .content.content-fill .work-side-body::after { content: ''; flex-shrink: 0; height: 0; }
+}
+
+/* Telas baixas no desktop (notebook, Windows a 125%): a coluna volta ao
+   espaçamento compacto para Detalhes, Integrantes e Progresso caberem sem
+   rolar; acima de 900px de altura vale o espaçamento largo. */
+@media (min-width: 901px) and (max-height: 900px) {
+  .work-side-panel { gap: 9px; padding: 13px 12px 12px; }
+  .work-side-title { font-size: 20px; }
+  .work-side-body { gap: 12px; }
+  .work-side-section { gap: 6px; }
+  .work-side-head { font-size: 15px; }
+  .work-side-fields { gap: 6px; }
+  .work-side-fields .field { gap: 2px; }
+  .work-side-fields .field input, .work-side-fields .field select { padding: 5px 12px; font-size: 12.5px; }
+  .work-side-members .member-chip { padding: 4px 5px 4px 11px; font-size: 12px; }
+  .member-add-chip { padding: 4px 10px; font-size: 12px; }
+  .work-side-progress .due-chip { font-size: 12px; padding: 5px 12px; }
+  .work-pie-btn { width: 50px; height: 50px; }
 }
 
 /* ---------- editor rico ----------
@@ -1448,6 +1567,10 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   .paper-item.is-new button { animation: none; }
   .fb-pop { animation: none; }
   .fb-switch-track, .fb-switch-track::after { transition: none; }
+  /* página de trabalho */
+  .work-side-anchor, .note-editor-panel, .class-quicknav, .popover,
+  .work-side-members .member-chip, .member-add-inline input { animation: none; }
+  .work-pie-sector, .work-pie-btn, .quicknav-btn, .work-side-title { transition: none; }
 }
 
 /* ----- Painel de Foco (botão ⠿ de Trabalhos) -----
@@ -1710,12 +1833,6 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
 .fb-pop-note input { width: 100%; padding: 7px 10px; font-size: 13px; }
 .fb-pop-clear { color: var(--ink-faint); }
 
-.type-badge {
-  padding: 3px 11px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.3px;
-}
-.type-badge.tarefa { background: rgba(10,132,255,0.14); color: var(--accent-deep); border: 1px solid rgba(10,132,255,0.28); }
-.type-badge.trabalho { background: rgba(191,90,242,0.15); color: #8e2bbf; border: 1px solid rgba(191,90,242,0.32); }
-
 /* Etiqueta "Nº Ano · Nº Sem" — vínculo do registro com o ano letivo */
 .term-chip {
   display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
@@ -1735,50 +1852,14 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   height: 8px; border-radius: 999px; background: rgba(120,160,200,0.25); overflow: hidden;
   box-shadow: inset 0 1px 2px rgba(31,87,148,0.15);
 }
-.progress-track.big { height: 12px; }
 .progress-fill {
   height: 100%; border-radius: 999px;
   background: linear-gradient(90deg, #56c8ff, var(--accent));
   box-shadow: 0 0 8px rgba(10,132,255,0.5); transition: width 0.25s ease;
 }
-.progress-fill.done { background: linear-gradient(90deg, #4ade80, var(--done)); box-shadow: 0 0 8px rgba(22,163,74,0.5); }
-.progress-label { font-size: 11.5px; color: var(--ink-faint); font-weight: 700; }
 
-/* Detalhes do trabalho: barra fina recolhida por padrão — as anotações são as
-   protagonistas. A exclusão do trabalho mora no fim da área expandida:
-   continua longe de um toque acidental, atrás do clique que abre a seção. */
-.work-details { padding: 9px 12px; margin-bottom: 12px; }
-.work-details-toggle {
-  position: relative; /* acima do brilho .panel::before */
-  width: 100%; display: flex; align-items: center; gap: 8px; text-align: left;
-  font-size: 13px; font-weight: 700; color: var(--ink-soft);
-  padding: 5px 6px; border-radius: 10px; transition: background 0.15s;
-}
-.work-details-toggle:hover { background: rgba(255,255,255,0.5); color: var(--ink); }
-.work-details-toggle svg:last-child { margin-left: auto; flex-shrink: 0; transition: transform 0.2s ease; }
-.work-details-summary {
-  flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--ink-faint);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.work-details-body {
-  position: relative; display: flex; flex-direction: column; gap: 16px;
-  margin-top: 8px; padding-top: 14px; border-top: 1px solid rgba(160,200,235,0.45);
-}
-.work-details-danger {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-  padding: 12px 14px; border-radius: var(--radius-sm);
-  background: rgba(224, 40, 79, 0.07); border: 1px solid rgba(224, 40, 79, 0.25);
-}
-.work-details-danger-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.work-details-danger strong { font-size: 13.5px; color: #9f1239; }
-.work-details-danger small { font-size: 12px; color: var(--ink-soft); }
-
-.work-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; position: relative; }
-.progress-row { display: flex; flex-direction: column; gap: 7px; position: relative; }
-.progress-row input[type='range'] { accent-color: var(--accent); }
-
-.members-row { display: flex; flex-direction: column; gap: 8px; position: relative; }
-.members-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* Chip de integrante (sidebar do trabalho) + botão × de remover, também usado
+   na aba ativa de anotações */
 .member-chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 13px; border-radius: 999px;
   background: rgba(255,255,255,0.7); border: 1px solid rgba(160,200,235,0.7);
@@ -1789,14 +1870,8 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   background: rgba(120,160,200,0.25); color: var(--ink-soft); cursor: pointer; transition: all 0.13s;
 }
 .chip-x:hover { background: rgba(224,40,79,0.2); color: var(--urgent); }
-.member-add { display: flex; gap: 7px; align-items: center; }
-.member-add input {
-  padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(160,200,235,0.7);
-  background: rgba(255,255,255,0.7); outline: none; font-size: 13px; width: 190px;
-}
 
-.work-notes-panel { margin-bottom: 14px; }
-.work-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; position: relative; }
+.work-tabs { display: flex; gap: 6px; position: relative; }
 .work-tab {
   display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px; border-radius: 999px;
   font-size: 13px; font-weight: 700; color: var(--ink-soft);
@@ -1809,7 +1884,6 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
 }
 .work-tab.active .chip-x { background: rgba(255,255,255,0.3); color: #fff; }
 .work-tab.add { padding: 8px 11px; }
-.tab-editor-status { display: flex; justify-content: flex-end; min-height: 16px; }
 
 .file-list { list-style: none; display: flex; flex-direction: column; gap: 6px; position: relative; }
 .file-list li {

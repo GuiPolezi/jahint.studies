@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import {
   X, File, FileText, FileArchive, FileCode, FileImage,
-  Paperclip, ChevronDown, Upload, Download, Trash2,
+  Upload, Download, Trash2,
 } from 'lucide-react'
 import { daysUntil, urgency, urgencyLabel, CLASS_COLORS, formatBytes } from '../lib/utils'
 
@@ -63,9 +63,9 @@ export function fileIcon(att, size = 18) {
   return <File size={size} />
 }
 
-// Upload em fila + input escondido, compartilhado pelas duas caras dos
-// anexos (barra recolhível do trabalho e modal da aula).
-function useSequentialUpload(onUpload, afterUpload) {
+// Upload em fila + input escondido — usado pela área de arquivos dos modais
+// "Arquivos" da anotação de aula e do trabalho.
+function useSequentialUpload(onUpload) {
   const [uploading, setUploading] = useState(false)
   const input = useRef(null)
 
@@ -78,7 +78,6 @@ function useSequentialUpload(onUpload, afterUpload) {
     // estourava o limite do proxy e a barra de progresso ficava sem sentido.
     for (const f of picked) await onUpload(f)
     setUploading(false)
-    afterUpload?.()
   }
 
   return { uploading, input, onFiles }
@@ -112,8 +111,8 @@ function FileList({ files, onDownload, onDelete }) {
   )
 }
 
-// Área de arquivos sempre expandida — vive dentro do modal "Arquivos" da
-// anotação de aula. Recebe callbacks; o dono (note) fica no pai.
+// Área de arquivos sempre expandida — vive no modal "Arquivos" da anotação
+// de aula e do trabalho. Recebe callbacks; o dono (note/work) fica no pai.
 export function FilesArea({ files = [], onUpload, onDelete, onDownload, hint, emptyLabel = 'Nenhum arquivo ainda.' }) {
   const { uploading, input, onFiles } = useSequentialUpload(onUpload)
   return (
@@ -132,42 +131,6 @@ export function FilesArea({ files = [], onUpload, onDelete, onDownload, hint, em
       {files.length === 0
         ? <p className="panel-empty">{emptyLabel}</p>
         : <FileList files={files} onDownload={onDownload} onDelete={onDelete} />}
-    </div>
-  )
-}
-
-// Barra de arquivos recolhível: uma linha fina que expande para a lista.
-// Usada nos anexos de trabalho (na aula os arquivos viraram modal).
-export function CollapsibleFiles({ files = [], onUpload, onDelete, onDownload, label, emptyLabel = 'Sem arquivos', hint }) {
-  const [open, setOpen] = useState(false)
-  const { uploading, input, onFiles } = useSequentialUpload(onUpload, () => setOpen(true)) // mostra o resultado do envio
-
-  return (
-    <div className="note-files">
-      <div className="note-files-bar" title={hint}>
-        <button
-          className="note-files-toggle"
-          onClick={() => setOpen(o => !o)}
-          disabled={files.length === 0}
-          aria-expanded={open}
-        >
-          <Paperclip size={13} />
-          <span>{files.length ? `${label} (${files.length})` : emptyLabel}</span>
-          {files.length > 0 && <ChevronDown size={13} style={{ transform: open ? 'rotate(180deg)' : 'none' }} />}
-        </button>
-        <button
-          className="btn-ghost btn-sm"
-          onClick={() => input.current?.click()}
-          disabled={uploading}
-        >
-          <Upload size={13} /> {uploading ? 'Enviando…' : 'Anexar'}
-        </button>
-        <input ref={input} type="file" multiple hidden onChange={onFiles} />
-      </div>
-
-      {open && files.length > 0 && (
-        <FileList files={files} onDownload={onDownload} onDelete={onDelete} />
-      )}
     </div>
   )
 }

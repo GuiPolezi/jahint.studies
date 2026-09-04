@@ -1,5 +1,6 @@
 /* ============================================================
-   Jahint.Studies — IMPRESSÃO ("Exportar PDF" da anotação)
+   Jahint.Studies — IMPRESSÃO ("Exportar PDF" da anotação de aula
+   ou de trabalho — as duas telas usam o mesmo esqueleto .class-view)
    ------------------------------------------------------------
    Transforma a página da anotação num documento limpo: some o
    vidro, os menus e a coluna lateral; fica o cabeçalho impresso
@@ -14,7 +15,7 @@
   .bg-aero, .sidebar, .mobile-topbar, .drawer-backdrop,
   .class-topbar, .class-side, .note-save-float, .save-status,
   [data-tippy-root], .pop-backdrop, .popover, .modal-overlay,
-  .floating-plus-btn, .note-files {
+  .floating-plus-btn, .work-tabs-bar {
     display: none !important;
   }
 

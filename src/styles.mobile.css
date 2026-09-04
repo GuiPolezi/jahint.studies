@@ -227,7 +227,7 @@
   input, select, textarea,
   .field input, .field select, .field textarea,
   .filter-bar select, .slot-row select, .slot-row input,
-  .member-add input {
+  .member-add-inline input {
     font-size: 16px;
   }
 
@@ -243,8 +243,6 @@
   .radio-pill { min-height: 42px; }
   .note-item { min-height: 46px; justify-content: center; }
   .sem-row { min-height: 52px; }
-  .note-files-toggle { min-height: 40px; }
-  .work-details-toggle { min-height: 44px; }
   .tb-menu-item { min-height: 44px; font-size: 15px; }
   .dots-btn { width: 44px; height: 44px; }
   .note-add-btn { min-height: 44px; }
@@ -252,7 +250,6 @@
   /* Campos com altura uniforme: date/time nativos do iOS e do Android
      renderizam com alturas diferentes dos campos de texto comuns. */
   .field input, .field select, .filter-bar select,
-  .member-add input,
   .slot-row select, .slot-row input { min-height: 44px; }
 
   /* ---------- contenção de largura ----------
@@ -266,7 +263,6 @@
   .class-layout > *,
   .dash-columns > *,
   .profile-layout > *,
-  .work-info-grid > *,
   .form-grid > *,
   .modal-form > *,
   .big-numbers > *,
@@ -275,6 +271,7 @@
   .view-head > *,
   .field,
   .class-side,
+  .work-side-anchor,
   .class-side-panel,
   .note-editor-panel,
   .note-editor-pane,
@@ -403,10 +400,15 @@
   .notes-list { max-height: 30dvh; }
   .quicknav-row { grid-template-columns: 1fr 1fr; }
   .note-editor-panel { padding: 12px 12px; }
-  .note-title-input { min-width: 0; flex: 1 1 100%; font-size: 17px; }
-  .work-title { font-size: 19px; }
-  .work-head { row-gap: 6px; }
-  .work-head .view-sub { flex: 1 1 100%; }
+
+  /* ---------- trabalho: página de anotação ---------- */
+  .work-side-title { font-size: 19px; }
+  .work-side-fields .field input, .work-side-fields .field select { min-height: 44px; font-size: 16px; } /* anti-zoom iOS */
+  .member-add-chip { min-height: 36px; padding: 6px 13px; }
+  .member-add-inline input { min-height: 36px; width: 170px; }
+  .work-pie { margin-right: 12px; }
+  .progress-pop { width: min(300px, calc(100vw - 32px)); }
+  .progress-pop input[type='range'] { min-height: 32px; }
 
   /* ---------- trabalhos: estante de livros ---------- */
   /* O livro tem geometria fixa de 160px — as colunas seguem o que cabe:
@@ -417,26 +419,9 @@
   .shelf-item .caption p { font-size: 11px; }
   .filter-bar { gap: 8px; }
   .filter-bar select { min-width: 0; flex: 1 1 calc(50% - 4px); }
-  .work-info-grid { grid-template-columns: 1fr; }
-  /* O container recorta em overflow-x, e isso cortava o brilho do balão
-     ativo num traço reto embaixo dele. O padding dá espaço para a sombra;
-     as margens negativas devolvem o alinhamento original. */
-  .work-tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding: 7px 4px 11px;
-    margin: -7px -4px 3px;
-  }
-  .work-tabs::-webkit-scrollbar { display: none; }
-  .work-tab { flex-shrink: 0; }
   .work-tab.active { box-shadow: 0 3px 9px rgba(10, 132, 255, 0.32); }
-  .member-add { width: 100%; }
-  .member-add input { width: 100%; flex: 1; }
   .file-list li { gap: 10px; padding: 9px 10px; }
   .file-icon { width: 34px; height: 34px; }
-  .work-details-danger { flex-direction: column; align-items: stretch; gap: 10px; }
-  .work-details-danger .btn-danger { width: 100%; justify-content: center; }
 
   /* ---------- provas ---------- */
   .exam-card { gap: 12px; padding: 12px 12px; align-items: flex-start; }
@@ -491,6 +476,7 @@
     padding: 12px;
     border-radius: 18px;
     box-shadow: 0 20px 50px rgba(10, 50, 90, 0.35);
+    animation: fadeIn 0.16s ease; /* só opacidade: o transform é do centralizador */
   }
   .swatch-grid { gap: 8px; }
   .swatch { width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
@@ -655,11 +641,6 @@
   .fb-stat.is-ok .fb-stat-value { font-size: 17px; }
   .fb-row { flex-wrap: wrap; }
   .fb-row-pick { flex-basis: 100%; display: flex; justify-content: flex-end; }
-
-  .members-chips { gap: 6px; }
-  /* Título do trabalho é um <input>: quanto menor a fonte, mais texto
-     visível antes de precisar rolar dentro do campo */
-  .work-title { font-size: 17px; }
 }
 
 @media (max-width: 354px) {
@@ -711,4 +692,5 @@
   .due-today, .due-late, .alert-banner, .highlight-card { animation: none; }
   .sidebar { transition: none; }
   .modal, .auth-card, .modal-overlay, .drawer-backdrop { animation: none; }
+  .popover { animation: none; }
 }
