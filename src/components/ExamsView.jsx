@@ -249,9 +249,9 @@ export default function ExamsView() {
                       </div>
                     </div>
                     <div className="exam-subject-side">
-                      {s.next
-                        ? <DueChip date={s.next.date} />
-                        : <span className="exam-subject-none"><Check size={12} /> Todas feitas</span>}
+                      {!s.next && (
+                        <span className="exam-subject-none"><Check size={12} /> Todas feitas</span>
+                      )}
                       {s.cls && (
                         <button
                           className="icon-btn exam-subject-add"
