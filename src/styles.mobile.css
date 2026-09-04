@@ -37,6 +37,7 @@
      Em telas de toque não existe hover, então editar/excluir uma aula
      era simplesmente inalcançável. Aqui elas ficam sempre visíveis. */
   .class-card-actions { opacity: 1; }
+  .exam-row-actions { opacity: 1; }
 
   /* Alvos de toque confortáveis (mínimo recomendado ~44px) */
   .icon-btn { width: 40px; height: 40px; border-radius: 12px; }
@@ -47,6 +48,7 @@
   /* Efeitos de hover não fazem sentido e "grudam" após o toque */
   .sem-row:hover,
   .class-card:hover,
+  .exam-subject:hover,
   .big-card[role='button']:hover { transform: none; }
 
   /* Sem o flash cinza do iOS e sem o atraso de 300ms do duplo-toque */
@@ -424,11 +426,13 @@
   .file-icon { width: 34px; height: 34px; }
 
   /* ---------- provas ---------- */
-  .exam-card { gap: 12px; padding: 12px 12px; align-items: flex-start; }
-  .exam-card-left { width: 58px; height: 54px; border-radius: 14px; }
-  .exam-label { font-size: 14px; }
-  .exam-meta { gap: 8px; font-size: 12px; }
-  .exam-card .row-actions { flex-direction: column; }
+  .exam-grid { grid-template-columns: 1fr; gap: 12px; }
+  .exam-subject { padding: 14px 12px 12px; }
+  .exam-subject-title h3 { font-size: 15px; }
+  .exam-row { gap: 8px; padding: 8px; }
+  .exam-row-actions .icon-btn { width: 34px; height: 34px; }
+  /* O toggle de provas passadas ocupa a linha inteira abaixo dos filtros */
+  .past-toggle { margin-left: 0; flex: 1 1 100%; justify-content: center; }
 }
 
 /* ============================================================
@@ -620,9 +624,10 @@
   .empty-actions { flex-direction: column; }
   .empty-actions > button { width: 100%; justify-content: center; }
 
-  .exam-card { flex-wrap: wrap; }
-  .exam-card-body { flex: 1 1 calc(100% - 130px); }
-  .exam-topics { flex-basis: 100%; }
+  /* Linha da prova em duas alturas — [etiqueta | data | prazo] e as ações
+     abaixo, à direita: quatro colunas não cabem em 360px */
+  .exam-row { grid-template-columns: auto 1fr auto; }
+  .exam-row-actions { grid-column: 2 / -1; justify-self: end; margin-top: -2px; }
 
   /* Estante em 2 colunas (2×160 + 14 = 334px de conteúdo — cabe até nos
      360px) e papel de pauta ocupando quase toda a tela */
@@ -676,7 +681,7 @@
 @media (max-width: 900px) {
   .orb { animation: none; }
   .orb-1, .orb-4 { display: none; }
-  .panel, .big-card, .day-col, .sidebar, .paper-modal {
+  .panel, .big-card, .day-col, .sidebar, .paper-modal, .exam-subject {
     backdrop-filter: blur(14px) saturate(1.35);
     -webkit-backdrop-filter: blur(14px) saturate(1.35);
   }
