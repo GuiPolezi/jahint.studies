@@ -64,12 +64,35 @@ export function reqEmail(value) {
   return v.toLowerCase()
 }
 
+// Senha: 8 a 128 caracteres (o bcrypt só considera os primeiros 72 bytes;
+// o teto evita gastar hash em textos enormes)
+export function validPassword(value) {
+  if (typeof value !== 'string' || value.length < 8) bad('A senha deve ter pelo menos 8 caracteres.')
+  if (value.length > 128) bad('A senha deve ter no máximo 128 caracteres.')
+  return value
+}
+
+// Chaves que, dentro do JSON do editor, viram atributos executáveis no DOM
+// pelo mergeAttributes do TipTap (GHSA-cp6q-959q-f8rh) ou poluem protótipos
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+function hasDangerousKeys(value, depth = 0) {
+  if (depth > 500) return true // aninhamento absurdo: rejeita
+  if (Array.isArray(value)) return value.some(v => hasDangerousKeys(v, depth + 1))
+  if (value && typeof value === 'object') {
+    for (const key of Object.keys(value))
+      if (DANGEROUS_KEYS.has(key) || hasDangerousKeys(value[key], depth + 1)) return true
+  }
+  return false
+}
+
 // Conteúdo TipTap: aceita objeto (serializa) ou string JSON válida
 export function optJsonContent(value, field = 'conteúdo') {
   if (value == null) return null
-  if (typeof value === 'object') return JSON.stringify(value)
+  let parsed = value
   if (typeof value === 'string') {
-    try { JSON.parse(value); return value } catch { bad(`${field} não é um JSON válido.`) }
+    try { parsed = JSON.parse(value) } catch { bad(`${field} não é um JSON válido.`) }
   }
-  bad(`${field} inválido.`)
+  if (!parsed || typeof parsed !== 'object') bad(`${field} inválido.`)
+  if (hasDangerousKeys(parsed)) bad(`${field} contém chaves não permitidas.`)
+  return typeof value === 'string' ? value : JSON.stringify(value)
 }

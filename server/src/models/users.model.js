@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { q } from '../config/db.js'
 import { uid } from '../lib/ids.js'
 
@@ -12,7 +13,9 @@ export function toUserDTO(row) {
     age: row.age,
     institution: row.institution,
     course: row.course,
-    avatar: row.avatar_path ? `/${row.avatar_path.replace(/\\/g, '/')}` : null,
+    // URL pública do avatar: só o nome do arquivo — o caminho em disco
+    // (UPLOAD_DIR pode ser absoluto) nunca sai do servidor
+    avatar: row.avatar_path ? `/uploads/avatars/${path.basename(row.avatar_path)}` : null,
     activeSemesterId: row.active_semester_id,
     createdAt: row.created_at,
   }
@@ -34,9 +37,16 @@ export async function createUser({ fullName, nickname, email, passwordHash, age,
   return findById(id)
 }
 
+// Colunas que o updateUser aceita — defesa extra contra nomes de coluna
+// vindos de fora (os controllers já usam chaves fixas)
+const USER_COLS = new Set([
+  'full_name', 'nickname', 'email', 'password_hash', 'age', 'institution',
+  'course', 'avatar_path', 'active_semester_id', 'token_version',
+])
+
 export async function updateUser(id, fields) {
   // fields já validados: pares coluna → valor
-  const cols = Object.keys(fields)
+  const cols = Object.keys(fields).filter(c => USER_COLS.has(c))
   if (!cols.length) return findById(id)
   const sets = cols.map(c => `${c} = ?`).join(', ')
   await q(`UPDATE users SET ${sets} WHERE id = ?`, [...cols.map(c => fields[c]), id])

@@ -87,7 +87,8 @@ export const api = {
   login: (email, password) => post('/auth/login', { email, password })
     .then(r => ({ ...r, user: fixUser(r.user) })),
   me: () => get('/me').then(r => ({ user: fixUser(r.user) })),
-  updateMe: changes => put('/me', changes).then(r => ({ user: fixUser(r.user) })),
+  // Ao trocar a senha o servidor invalida os tokens antigos e devolve um novo
+  updateMe: changes => put('/me', changes).then(r => ({ user: fixUser(r.user), token: r.token })),
   updateAvatar: file => {
     const fd = new FormData()
     fd.append('avatar', file)

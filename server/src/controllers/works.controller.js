@@ -52,8 +52,9 @@ export async function update(req, res) {
   }
   if (b.focusNote !== undefined) fields.focusNote = optString(b.focusNote, 'ritmo', { max: 120 })
   if (b.classId !== undefined) {
-    await assertClass(req.userId, b.classId)
-    fields.classId = b.classId
+    // Valida o tipo antes de chegar ao SQL: só string de id, nunca objeto/array
+    fields.classId = reqString(b.classId, 'matéria', { max: 24 })
+    await assertClass(req.userId, fields.classId)
   }
   res.json({ work: await Works.updateWork(req.params.id, fields) })
 }
@@ -76,7 +77,8 @@ export async function addMember(req, res) {
 
 export async function removeMember(req, res) {
   await assertWork(req.userId, req.params.id)
-  await Works.deleteMember(req.params.id, Number(req.params.memberId))
+  const memberId = reqInt(req.params.memberId, 'integrante', { min: 1, max: 2147483647 })
+  await Works.deleteMember(req.params.id, memberId)
   res.json({ ok: true })
 }
 
@@ -119,7 +121,9 @@ export async function addAttachment(req, res) {
   }
   if (!req.file) bad('Envie um arquivo no campo "file".')
   const attachment = await Works.addAttachment(req.params.id, {
-    fileName: decodeFileName(req.file.originalname),
+    // A coluna é VARCHAR(255): sem o corte, um nome maior dava 500 depois
+    // de o arquivo já estar no disco (órfão)
+    fileName: decodeFileName(req.file.originalname).slice(0, 255),
     filePath: req.file.path,
     size: req.file.size,
     mime: req.file.mimetype || 'application/octet-stream',

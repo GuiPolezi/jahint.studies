@@ -57,7 +57,9 @@ export async function addAttachment(req, res) {
   }
   if (!req.file) bad('Envie um arquivo no campo "file".')
   const attachment = await Notes.addAttachment(req.params.id, {
-    fileName: decodeFileName(req.file.originalname),
+    // A coluna é VARCHAR(255): sem o corte, um nome maior dava 500 depois
+    // de o arquivo já estar no disco (órfão)
+    fileName: decodeFileName(req.file.originalname).slice(0, 255),
     filePath: req.file.path,
     size: req.file.size,
     mime: req.file.mimetype || 'application/octet-stream',

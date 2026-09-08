@@ -1,12 +1,14 @@
-// Pool de conexões MySQL/MariaDB (mysql2). As credenciais vêm do .env.
+// Pool de conexões MySQL/MariaDB (mysql2). As credenciais vêm do .env —
+// sem fallback para root/sem senha.
 import 'dotenv/config'
 import mysql from 'mysql2/promise'
+import { requireEnv } from './env.js'
 
 export const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
+  user: requireEnv('DB_USER'),
+  password: requireEnv('DB_PASSWORD'),
   database: process.env.DB_NAME || 'jahint_studies',
   waitForConnections: true,
   connectionLimit: 10,

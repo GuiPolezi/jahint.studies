@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useRef, useState } from 'react'
-import { api, ApiError } from '../lib/api'
+import { api, ApiError, setToken } from '../lib/api'
 
 const StoreCtx = createContext(null)
 export const useStore = () => useContext(StoreCtx)
@@ -345,7 +345,11 @@ export function StoreProvider({ user, initialData, onLogout, onUserChanged, chil
       // ---------- perfil ----------
       async updateProfile(changes) {
         const res = await run(api.updateMe(changes))
-        if (res) onUserChanged(res.user)
+        if (res) {
+          // Senha trocada: o token antigo já não vale, guarda o novo
+          if (res.token) setToken(res.token)
+          onUserChanged(res.user)
+        }
         return res?.user || null
       },
       async updateAvatar(file) {

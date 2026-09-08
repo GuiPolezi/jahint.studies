@@ -11,10 +11,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const {
   DB_HOST = 'localhost',
   DB_PORT = '3306',
-  DB_USER = 'root',
-  DB_PASSWORD = '123',
+  DB_USER,
+  DB_PASSWORD,
   DB_NAME = 'jahint_studies',
 } = process.env
+
+// Sem fallback para root/senha fixa no código: credenciais só vêm do .env
+if (!DB_USER || !DB_PASSWORD) {
+  console.error('ERRO: defina DB_USER e DB_PASSWORD no arquivo .env antes de rodar a migração.')
+  process.exit(1)
+}
+// O nome do banco entra no CREATE DATABASE por interpolação (não há
+// placeholder para identificadores), então só aceita nome simples
+if (!/^[A-Za-z0-9_]+$/.test(DB_NAME)) {
+  console.error('ERRO: DB_NAME só pode conter letras, dígitos e "_".')
+  process.exit(1)
+}
 
 async function main() {
   // Conecta sem selecionar banco para poder criá-lo

@@ -37,7 +37,7 @@ export default function AuthScreen({ onAuthed }) {
     e.preventDefault()
     if (!form.fullName.trim()) return setError('Informe seu nome completo.')
     if (!/.+@.+\..+/.test(form.email.trim())) return setError('Informe um e-mail válido.')
-    if (form.password.length < 4) return setError('A senha deve ter pelo menos 4 caracteres.')
+    if (form.password.length < 8) return setError('A senha deve ter pelo menos 8 caracteres.')
     setBusy(true); setError('')
     try {
       const res = await api.register({
@@ -131,7 +131,7 @@ export default function AuthScreen({ onAuthed }) {
                 <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="voce@email.com" />
               </Field>
               <Field label="Senha *">
-                <input type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Mínimo 4 caracteres" />
+                <input type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Mínimo 8 caracteres" />
               </Field>
               <Field label="Idade">
                 <input type="number" min="1" max="120" value={form.age} onChange={e => set('age', e.target.value)} placeholder="Ex.: 21" />

@@ -3,7 +3,8 @@
 import bcrypt from 'bcryptjs'
 import fs from 'node:fs'
 import { signToken } from '../middleware/auth.js'
-import { HttpError, bad, reqString, optString, optInt, reqEmail } from '../lib/validate.js'
+import { HttpError, bad, reqString, optString, optInt, reqEmail, validPassword } from '../lib/validate.js'
+import { assertRealImage } from '../config/uploads.js'
 import * as Users from '../models/users.model.js'
 import * as Studies from '../models/studies.model.js'
 import * as Notes from '../models/notes.model.js'
@@ -12,12 +13,16 @@ import * as Exams from '../models/exams.model.js'
 import * as FocusBoards from '../models/focusboard.model.js'
 import { assertSemester } from '../models/ownership.js'
 
+// Custo do bcrypt (~250 ms por hash); o rate limit em /api/auth segura o resto
+const BCRYPT_ROUNDS = 12
+// Hash comparado quando o e-mail não existe: o login demora o mesmo tanto com
+// e sem conta, então o tempo de resposta não revela quais e-mails existem
+const DUMMY_HASH = bcrypt.hashSync('senha-falsa-para-tempo-constante', BCRYPT_ROUNDS)
+
 export async function register(req, res) {
   const fullName = reqString(req.body.fullName, 'nome completo', { max: 120 })
   const email = reqEmail(req.body.email)
-  const password = req.body.password
-  if (typeof password !== 'string' || password.length < 4)
-    bad('A senha deve ter pelo menos 4 caracteres.')
+  const password = validPassword(req.body.password)
 
   if (await Users.findByEmail(email))
     throw new HttpError(409, 'Já existe uma conta com esse e-mail.')
@@ -26,33 +31,46 @@ export async function register(req, res) {
     fullName,
     nickname: optString(req.body.nickname, 'apelido', { max: 60 }) || fullName.split(' ')[0],
     email,
-    passwordHash: await bcrypt.hash(password, 10),
+    passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
     age: optInt(req.body.age, 'idade', { min: 1, max: 120 }),
     institution: optString(req.body.institution, 'instituição', { max: 120 }),
     course: optString(req.body.course, 'curso', { max: 120 }),
   })
 
-  res.status(201).json({ token: signToken(user.id), user: Users.toUserDTO(user) })
+  res.status(201).json({ token: signToken(user), user: Users.toUserDTO(user) })
 }
 
 export async function login(req, res) {
   const email = reqEmail(req.body.email)
-  const password = typeof req.body.password === 'string' ? req.body.password : ''
+  const password = typeof req.body.password === 'string' ? req.body.password.slice(0, 128) : ''
   const user = await Users.findByEmail(email)
-  if (!user || !(await bcrypt.compare(password, user.password_hash)))
+  const ok = await bcrypt.compare(password, user?.password_hash ?? DUMMY_HASH)
+  if (!user || !ok) {
+    console.warn({ event: 'auth.login_failed', email, ip: req.ip })
     throw new HttpError(401, 'E-mail ou senha incorretos.')
-  res.json({ token: signToken(user.id), user: Users.toUserDTO(user) })
+  }
+  res.json({ token: signToken(user), user: Users.toUserDTO(user) })
 }
 
 export async function me(req, res) {
-  const user = await Users.findById(req.userId)
-  if (!user) throw new HttpError(401, 'Conta não encontrada.')
-  res.json({ user: Users.toUserDTO(user) })
+  res.json({ user: Users.toUserDTO(req.user) })
 }
 
 export async function updateMe(req, res) {
   const b = req.body
+  const current = req.user
   const fields = {}
+
+  // E-mail e senha só mudam com a senha atual: um token vazado não basta
+  // para tomar a conta de vez
+  const wantsPassword = b.password !== undefined && b.password !== ''
+  const wantsEmail = b.email !== undefined && reqEmail(b.email) !== current.email
+  if (wantsPassword || wantsEmail) {
+    const typed = typeof b.currentPassword === 'string' ? b.currentPassword.slice(0, 128) : ''
+    if (!(await bcrypt.compare(typed, current.password_hash)))
+      throw new HttpError(401, 'Senha atual incorreta.')
+  }
+
   if (b.fullName !== undefined) fields.full_name = reqString(b.fullName, 'nome completo', { max: 120 })
   if (b.nickname !== undefined) fields.nickname = optString(b.nickname, 'apelido', { max: 60 })
   if (b.email !== undefined) {
@@ -65,26 +83,33 @@ export async function updateMe(req, res) {
   if (b.age !== undefined) fields.age = optInt(b.age, 'idade', { min: 1, max: 120 })
   if (b.institution !== undefined) fields.institution = optString(b.institution, 'instituição', { max: 120 })
   if (b.course !== undefined) fields.course = optString(b.course, 'curso', { max: 120 })
-  if (b.password !== undefined && b.password !== '') {
-    if (typeof b.password !== 'string' || b.password.length < 4)
-      bad('A senha deve ter pelo menos 4 caracteres.')
-    fields.password_hash = await bcrypt.hash(b.password, 10)
+  if (wantsPassword) {
+    fields.password_hash = await bcrypt.hash(validPassword(b.password), BCRYPT_ROUNDS)
+    // Derruba as outras sessões; a resposta traz um token novo para esta
+    fields.token_version = (current.token_version ?? 0) + 1
   }
+
   const user = await Users.updateUser(req.userId, fields)
-  res.json({ user: Users.toUserDTO(user) })
+  if (wantsPassword) console.info({ event: 'auth.password_changed', userId: req.userId, ip: req.ip })
+  res.json({
+    user: Users.toUserDTO(user),
+    ...(wantsPassword ? { token: signToken(user) } : {}),
+  })
 }
 
 export async function updateAvatar(req, res) {
   if (!req.file) bad('Envie uma imagem no campo "avatar".')
-  const user = await Users.findById(req.userId)
+  // O mimetype do multipart é do cliente; o que vale são os bytes do arquivo
+  const safePath = await assertRealImage(req.file.path)
+  if (!safePath) bad('O arquivo enviado não é uma imagem válida (PNG, JPG, WEBP ou GIF).')
   // Remove o avatar anterior do disco (se existir)
-  if (user?.avatar_path) fs.promises.unlink(user.avatar_path).catch(() => {})
-  const updated = await Users.updateUser(req.userId, { avatar_path: req.file.path })
+  if (req.user.avatar_path) fs.promises.unlink(req.user.avatar_path).catch(() => {})
+  const updated = await Users.updateUser(req.userId, { avatar_path: safePath })
   res.json({ user: Users.toUserDTO(updated) })
 }
 
 export async function setActiveSemester(req, res) {
-  const semesterId = req.body.semesterId ?? null
+  const semesterId = optString(req.body.semesterId, 'semestre', { max: 24 })
   if (semesterId !== null) await assertSemester(req.userId, semesterId)
   await Users.updateUser(req.userId, { active_semester_id: semesterId })
   res.json({ activeSemesterId: semesterId })
@@ -109,8 +134,7 @@ export async function updateFocusBoard(req, res) {
 
 // GET /api/me/data — árvore completa no formato do store do frontend
 export async function bootstrap(req, res) {
-  const [user, years, semesters, classes, notes, works, exams, focusBoard] = await Promise.all([
-    Users.findById(req.userId),
+  const [years, semesters, classes, notes, works, exams, focusBoard] = await Promise.all([
     Studies.listYears(req.userId),
     Studies.listSemesters(req.userId),
     Studies.listClasses(req.userId),
@@ -120,10 +144,10 @@ export async function bootstrap(req, res) {
     FocusBoards.getByUser(req.userId),
   ])
   res.json({
-    user: Users.toUserDTO(user),
+    user: Users.toUserDTO(req.user),
     data: {
       years, semesters, classes, notes, works, exams, focusBoard,
-      activeSemesterId: user?.active_semester_id ?? null,
+      activeSemesterId: req.user.active_semester_id ?? null,
     },
   })
 }

@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS users (
   course             VARCHAR(120)  NULL,
   avatar_path        VARCHAR(255)  NULL,
   active_semester_id CHAR(24)      NULL,
+  -- Versão da sessão: vai dentro do JWT; trocar a senha incrementa e
+  -- invalida todos os tokens emitidos antes
+  token_version      INT UNSIGNED  NOT NULL DEFAULT 0,
   created_at         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -168,3 +171,4 @@ CREATE TABLE IF NOT EXISTS focus_boards (
 ALTER TABLE works ADD COLUMN focus_lane ENUM('now','next','steady','hold') NULL;
 ALTER TABLE works ADD COLUMN focus_note VARCHAR(120) NULL;
 ALTER TABLE work_tabs ADD COLUMN updated_at DATETIME NULL;
+ALTER TABLE users ADD COLUMN token_version INT UNSIGNED NOT NULL DEFAULT 0;

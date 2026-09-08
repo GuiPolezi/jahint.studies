@@ -74,8 +74,14 @@ npm run db:setup       # cria o banco e as 11 tabelas automaticamente
 npm run dev            # API em http://localhost:3001
 ```
 
-> 💡 Gere um segredo forte para o JWT:
+> 💡 Gere um segredo forte para o JWT (mínimo 32 caracteres — a API não sobe com o valor de exemplo):
 > `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`
+
+> 🔐 Use um usuário de banco dedicado em vez do `root`:
+> ```sql
+> CREATE USER 'jahint'@'localhost' IDENTIFIED BY 'uma-senha-forte';
+> GRANT ALL PRIVILEGES ON jahint_studies.* TO 'jahint'@'localhost';
+> ```
 
 ### 2. Frontend
 
@@ -102,10 +108,14 @@ Autenticação via **JWT** (`Authorization: Bearer <token>`). Principais rotas:
 
 ## 🛡️ Segurança
 
-- Senhas com **bcrypt** — nunca em texto puro
+- Senhas com **bcrypt** (custo 12), mínimo de 8 caracteres — nunca em texto puro
 - **Isolamento por usuário**: toda consulta valida a propriedade do recurso (acesso alheio → `404`)
-- Anexos servidos apenas por rota autenticada, com nomes de arquivo aleatórios no disco
-- Credenciais fora do código — tudo via `.env` (ignorado pelo git)
+- Anexos servidos apenas por rota autenticada, com nomes de arquivo aleatórios no disco (25 MB por arquivo)
+- Avatares validados pelos **bytes reais** (PNG/JPG/WEBP/GIF) e servidos com `nosniff` + CSP `sandbox`
+- **Rate limit** em login/cadastro (20 tentativas por 15 min por IP) e no restante da API
+- Trocar e-mail ou senha exige a **senha atual**; trocar a senha invalida as outras sessões (`token_version`)
+- Headers de segurança via `helmet`; corpo JSON limitado a 100 kB fora das rotas do editor
+- Credenciais fora do código — tudo via `.env` (ignorado pelo git); a API se recusa a iniciar com `JWT_SECRET` fraco ou banco sem credenciais
 - CORS restrito à origem do frontend
 
 ## 🧰 Stack
