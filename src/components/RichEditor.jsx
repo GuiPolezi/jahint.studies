@@ -1,20 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useEditor, EditorContent, FloatingMenu } from '@tiptap/react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import { FloatingMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
-import TTUnderline from '@tiptap/extension-underline'
-import TTLink from '@tiptap/extension-link'
+import { Placeholder } from '@tiptap/extensions'
+import { TextStyle, Color } from '@tiptap/extension-text-style'
+import { TaskList, TaskItem } from '@tiptap/extension-list'
+import { TableKit } from '@tiptap/extension-table'
 import TTImage from '@tiptap/extension-image'
 import TextAlign from '@tiptap/extension-text-align'
-import TextStyle from '@tiptap/extension-text-style'
-import { Color } from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
-import TaskList from '@tiptap/extension-task-list'
-import TaskItem from '@tiptap/extension-task-item'
-import TTTable from '@tiptap/extension-table'
-import TableRow from '@tiptap/extension-table-row'
-import TableHeader from '@tiptap/extension-table-header'
-import TableCell from '@tiptap/extension-table-cell'
-import Placeholder from '@tiptap/extension-placeholder'
 import { Plus } from 'lucide-react'
 import { readImageResized } from '../lib/utils'
 import { api } from '../lib/api'
@@ -101,20 +95,18 @@ export function SaveStatus({ status }) {
   return null
 }
 
-// tippyOptions do "+" de linha vazia: constante de módulo (capturada uma vez
-// pelo plugin). O flip do popper resolve quando não há espaço à esquerda.
-// appendTo: fora do overflow do .editor-scroll, mas DENTRO da árvore React
-// (#root). No body os onClick nunca disparam — o React 18 delega eventos na
-// raiz da aplicação, e o clique num nó movido para o body não passa por ela.
-const FLOAT_OPTS = {
-  placement: 'left',
-  offset: [0, 6],
-  appendTo: ref => ref.closest('.rich-editor') || document.body,
-  duration: 100,
-}
-
 export default function RichEditor({ initial, onChange, placeholder = 'Escreva aqui… digite "/" para comandos, como no Notion.' }) {
   const imgInput = useRef(null)
+
+  // Elementos de referência dos menus flutuantes, guardados como state (e não
+  // ref) para que os menus só montem depois de eles existirem no DOM — o
+  // BubbleMenu e o FloatingMenu (TipTap 3) precisam deles ao criar o plugin.
+  // rootEl (.rich-editor): onde os menus são anexados — fora do overflow do
+  //   .editor-scroll, mas DENTRO da árvore React (#root). No body os onClick
+  //   nunca disparam: o React 18 delega eventos na raiz da aplicação.
+  // scrollEl (.editor-scroll): a rolagem interna que reposiciona os menus.
+  const [rootEl, setRootEl] = useState(null)
+  const [scrollEl, setScrollEl] = useState(null)
 
   // A lista de extensões é capturada uma única vez pelo useEditor; o callback
   // usa ref (estável), então o useMemo sem deps é seguro.
@@ -125,20 +117,16 @@ export default function RichEditor({ initial, onChange, placeholder = 'Escreva a
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      TTUnderline,
-      TTLink.configure({ openOnClick: false, autolink: true }),
-      TTImage.configure({ allowBase64: true }),
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      // Na versão 3 o StarterKit já traz Underline e Link
+      StarterKit.configure({ link: { openOnClick: false, autolink: true } }),
       TextStyle,
       Color,
       Highlight.configure({ multicolor: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      TTTable.configure({ resizable: true }),
-      TableRow,
-      TableHeader,
-      TableCell,
+      TableKit.configure({ table: { resizable: true } }),
+      TTImage.configure({ allowBase64: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder }),
       SlashCommands.configure({ suggestion: slashSuggestion }),
     ],
@@ -146,25 +134,36 @@ export default function RichEditor({ initial, onChange, placeholder = 'Escreva a
     onUpdate: ({ editor }) => onChange?.(editor.getJSON()),
   })
 
+  // "+" de linha vazia (Floating UI): à esquerda da linha; quando não há
+  // espaço, o flip resolve. scrollTarget: sem ele o plugin só escuta a janela
+  const floatOpts = useMemo(
+    () => ({ placement: 'left', offset: 6, scrollTarget: scrollEl || undefined }),
+    [scrollEl]
+  )
+
   if (!editor) return null
 
+  const menusReady = rootEl && scrollEl
+
   return (
-    <div className="rich-editor">
-      <EditorBubbleMenu editor={editor} />
+    <div className="rich-editor" ref={setRootEl}>
+      {menusReady && <EditorBubbleMenu editor={editor} appendTo={rootEl} scrollTarget={scrollEl} />}
 
       {/* "+" em linha vazia: insere "/" e cai no mesmo menu do slash —
           é o caminho de quem está no toque, sem tecla "/" à mão */}
-      <FloatingMenu editor={editor} className="floating-plus" tippyOptions={FLOAT_OPTS}>
-        <button
-          type="button"
-          className="floating-plus-btn"
-          title='Adicionar bloco ("/")'
-          onMouseDown={e => e.preventDefault()}
-          onClick={() => editor.chain().focus().insertContent('/').run()}
-        >
-          <Plus size={14} />
-        </button>
-      </FloatingMenu>
+      {menusReady && (
+        <FloatingMenu editor={editor} className="floating-plus" appendTo={rootEl} options={floatOpts}>
+          <button
+            type="button"
+            className="floating-plus-btn"
+            title='Adicionar bloco ("/")'
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => editor.chain().focus().insertContent('/').run()}
+          >
+            <Plus size={14} />
+          </button>
+        </FloatingMenu>
+      )}
 
       <input
         ref={imgInput}
@@ -184,7 +183,7 @@ export default function RichEditor({ initial, onChange, placeholder = 'Escreva a
         }}
       />
 
-      <div className="editor-scroll" onClick={() => editor.chain().focus().run()}>
+      <div className="editor-scroll" ref={setScrollEl} onClick={() => editor.chain().focus().run()}>
         <EditorContent editor={editor} />
       </div>
     </div>

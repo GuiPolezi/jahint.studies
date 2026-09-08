@@ -445,11 +445,12 @@
 
   /* Menu "/" vira uma folha presa ao rodapé — junto do teclado, como nos
      apps móveis. O !important é a única forma CSS-only de vencer o style
-     inline do tippy. Plano B, se algum navegador apresentar glitch de
-     posição: remover este bloco e deixar só
+     inline (position/left/top/width) que o Suggestion do TipTap escreve no
+     .slash-root ao posicionar com Floating UI. Plano B, se algum navegador
+     apresentar glitch de posição: remover este bloco e deixar só
        .slash-menu { max-width: min(320px, calc(100vw - 24px)); }
-     (ancorado ao cursor, contido na tela pelo flip do popper). */
-  [data-tippy-root]:has(.slash-menu) {
+     (ancorado ao cursor, contido na tela pelo flip do Floating UI). */
+  .slash-root {
     position: fixed !important;
     transform: none !important;
     left: 12px !important;
@@ -459,7 +460,6 @@
     width: auto !important;
     max-width: none !important;
   }
-  [data-tippy-root]:has(.slash-menu) .tippy-box { width: 100%; max-width: none !important; }
   .slash-menu { width: 100%; min-width: 0; max-height: 38dvh; }
 
   /* Balão de formatação: quebra linha em vez de estourar a tela */

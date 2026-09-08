@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { BubbleMenu, isNodeSelection } from '@tiptap/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEditorState, isNodeSelection } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code, Link2,
   Palette, Highlighter, AlignLeft, AlignCenter, AlignRight, Eraser,
@@ -8,18 +9,8 @@ import {
 import { TbBtn, TEXT_COLORS, HIGHLIGHT_COLORS } from './editorUi'
 
 // Balão de formatação sobre a seleção, como no Notion.
-// shouldShow e tippyOptions são constantes de módulo DE PROPÓSITO: o plugin
-// do BubbleMenu captura essas referências no primeiro render — recriá-las a
-// cada render congela/duplica o comportamento do menu.
-const TIPPY_OPTS = {
-  duration: 120,
-  // Fora do overflow do .editor-scroll, mas DENTRO da árvore React (#root):
-  // movido para o body, o balão fica fora da raiz onde o React 18 delega os
-  // eventos, e nenhum onClick dos botões dispara (mesmo caso do "+").
-  appendTo: ref => ref.closest('.rich-editor') || document.body,
-  placement: 'top',
-  maxWidth: 'none',
-}
+// shouldShow é constante de módulo DE PROPÓSITO: referência estável evita o
+// plugin do BubbleMenu reprocessar as opções a cada render.
 
 // Não exige editor.isFocused: o campo de link dentro do balão rouba o foco
 // e o plugin já cuida de esconder no blur verdadeiro (para fora do menu).
@@ -35,12 +26,37 @@ const shouldShow = ({ editor, state, from, to }) => {
   return state.doc.textBetween(from, to).length > 0
 }
 
-export default function EditorBubbleMenu({ editor }) {
-  // Painéis trocados dentro do MESMO balão (evita tippy aninhado):
+// appendTo: elemento onde o balão é anexado (o .rich-editor — fora do overflow
+// do .editor-scroll, dentro da árvore React). scrollTarget: a rolagem interna
+// do editor, para o balão acompanhar o texto.
+export default function EditorBubbleMenu({ editor, appendTo, scrollTarget }) {
+  // Painéis trocados dentro do MESMO balão (evita menu aninhado):
   // null = linha de botões | 'link' | 'color' | 'highlight'
   const [panel, setPanel] = useState(null)
   const [linkUrl, setLinkUrl] = useState('')
   const linkInput = useRef(null)
+
+  // TipTap 3 não re-renderiza o componente a cada transação do editor: o
+  // estado das marcas ativas vem por seletor, e o balão só re-renderiza
+  // quando algum desses valores muda.
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: e }) => ({
+      bold: e.isActive('bold'),
+      italic: e.isActive('italic'),
+      underline: e.isActive('underline'),
+      strike: e.isActive('strike'),
+      code: e.isActive('code'),
+      link: e.isActive('link'),
+      left: e.isActive({ textAlign: 'left' }),
+      center: e.isActive({ textAlign: 'center' }),
+      right: e.isActive({ textAlign: 'right' }),
+      inTable: e.isActive('table'),
+    }),
+  })
+
+  // Posicionamento (Floating UI): acima da seleção, com flip automático
+  const options = useMemo(() => ({ placement: 'top', offset: 8, scrollTarget }), [scrollTarget])
 
   // Foco no campo de link quando o painel abre
   useEffect(() => {
@@ -68,10 +84,16 @@ export default function EditorBubbleMenu({ editor }) {
   }
 
   const run = fn => { fn(); setPanel(null) }
-  const inTable = editor.isActive('table')
 
   return (
-    <BubbleMenu editor={editor} className="bubble-menu" pluginKey="fmt" shouldShow={shouldShow} tippyOptions={TIPPY_OPTS}>
+    <BubbleMenu
+      editor={editor}
+      className="bubble-menu"
+      pluginKey="fmt"
+      shouldShow={shouldShow}
+      appendTo={appendTo}
+      options={options}
+    >
       {panel === 'link' ? (
         <div className="bubble-panel bubble-link">
           <input
@@ -86,7 +108,7 @@ export default function EditorBubbleMenu({ editor }) {
             }}
           />
           <TbBtn onClick={applyLink} title="Aplicar link"><Check size={14} /></TbBtn>
-          {editor.isActive('link') && (
+          {active.link && (
             <TbBtn onClick={() => run(() => editor.chain().focus().extendMarkRange('link').unsetLink().run())} title="Remover link">
               <Trash2 size={14} />
             </TbBtn>
@@ -138,23 +160,23 @@ export default function EditorBubbleMenu({ editor }) {
       ) : (
         <>
           <div className="bubble-row">
-            <TbBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Negrito"><Bold size={15} /></TbBtn>
-            <TbBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Itálico"><Italic size={15} /></TbBtn>
-            <TbBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Sublinhado"><UnderlineIcon size={15} /></TbBtn>
-            <TbBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Tachado"><Strikethrough size={15} /></TbBtn>
-            <TbBtn onClick={() => editor.chain().focus().toggleCode().run()} active={editor.isActive('code')} title="Código inline"><Code size={15} /></TbBtn>
+            <TbBtn onClick={() => editor.chain().focus().toggleBold().run()} active={active.bold} title="Negrito"><Bold size={15} /></TbBtn>
+            <TbBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={active.italic} title="Itálico"><Italic size={15} /></TbBtn>
+            <TbBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={active.underline} title="Sublinhado"><UnderlineIcon size={15} /></TbBtn>
+            <TbBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={active.strike} title="Tachado"><Strikethrough size={15} /></TbBtn>
+            <TbBtn onClick={() => editor.chain().focus().toggleCode().run()} active={active.code} title="Código inline"><Code size={15} /></TbBtn>
             <span className="tb-sep" />
-            <TbBtn onClick={openLink} active={editor.isActive('link')} title="Link"><Link2 size={15} /></TbBtn>
+            <TbBtn onClick={openLink} active={active.link} title="Link"><Link2 size={15} /></TbBtn>
             <TbBtn onClick={() => setPanel('color')} title="Cor do texto"><Palette size={15} /></TbBtn>
             <TbBtn onClick={() => setPanel('highlight')} title="Destacar (marca-texto)"><Highlighter size={15} /></TbBtn>
             <span className="tb-sep" />
-            <TbBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Alinhar à esquerda"><AlignLeft size={15} /></TbBtn>
-            <TbBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Centralizar"><AlignCenter size={15} /></TbBtn>
-            <TbBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Alinhar à direita"><AlignRight size={15} /></TbBtn>
+            <TbBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={active.left} title="Alinhar à esquerda"><AlignLeft size={15} /></TbBtn>
+            <TbBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={active.center} title="Centralizar"><AlignCenter size={15} /></TbBtn>
+            <TbBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={active.right} title="Alinhar à direita"><AlignRight size={15} /></TbBtn>
             <span className="tb-sep" />
             <TbBtn onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} title="Limpar formatação"><Eraser size={15} /></TbBtn>
           </div>
-          {inTable && (
+          {active.inTable && (
             <div className="bubble-row bubble-row-table">
               <TbBtn onClick={() => editor.chain().focus().addRowAfter().run()} title="Adicionar linha"><Rows3 size={14} /></TbBtn>
               <TbBtn onClick={() => editor.chain().focus().addColumnAfter().run()} title="Adicionar coluna"><Columns3 size={14} /></TbBtn>

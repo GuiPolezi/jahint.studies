@@ -2,7 +2,6 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import { Extension } from '@tiptap/core'
 import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
-import tippy from 'tippy.js'
 import {
   Type, Heading1, Heading2, Heading3, List, ListOrdered, ListTodo,
   Quote, Code, Minus, Table as TableIcon, Image as ImageIcon, Search,
@@ -41,8 +40,8 @@ const COMMANDS = [
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
 ]
 
-// Lista renderizada dentro do tippy. forwardRef: o render() do Suggestion
-// delega as teclas (↑ ↓ Enter) para cá via useImperativeHandle.
+// Lista renderizada no popup do Suggestion. forwardRef: o render() do
+// Suggestion delega as teclas (↑ ↓ Enter) para cá via useImperativeHandle.
 const SlashMenuList = forwardRef(function SlashMenuList({ items, command, query }, ref) {
   const [selected, setSelected] = useState(0)
   const listRef = useRef(null)
@@ -117,32 +116,26 @@ export function makeSuggestion({ pickImage }) {
       if (!q) return all
       return all.filter(it => fold(it.label).includes(q) || it.keywords.includes(q))
     },
+    // Posição do popup (TipTap 3 posiciona com Floating UI por conta própria)
+    placement: 'bottom-start',
     render: () => {
-      let component, popup
+      let component, unmount
       return {
         onStart: props => {
           component = new ReactRenderer(SlashMenuList, { props, editor: props.editor })
-          popup = tippy('body', {
-            getReferenceClientRect: props.clientRect,
-            appendTo: () => document.body, // escapa do overflow do .editor-scroll
-            content: component.element,
-            showOnCreate: true,
-            interactive: true,
-            trigger: 'manual',
-            placement: 'bottom-start',
-            maxWidth: 'none',
-          })
+          // O wrapper da lista recebe a classe que o CSS usa (z-index e a
+          // folha de rodapé no celular). props.mount anexa o elemento ao
+          // <body> — escapa do overflow do .editor-scroll — e o mantém junto
+          // ao cursor em rolagem e redimensionamento.
+          component.element.classList.add('slash-root')
+          unmount = props.mount(component.element)
         },
-        onUpdate: props => {
-          component.updateProps(props)
-          popup[0].setProps({ getReferenceClientRect: props.clientRect })
-        },
-        onKeyDown: props => {
-          if (props.event.key === 'Escape') { popup[0].hide(); return true }
-          return component.ref?.onKeyDown(props) ?? false
-        },
+        onUpdate: props => component.updateProps(props),
+        // Escape é tratado pelo próprio plugin (encerra a sugestão);
+        // ↑ ↓ Enter vão para a lista
+        onKeyDown: props => component.ref?.onKeyDown(props) ?? false,
         onExit: () => {
-          popup[0].destroy()
+          unmount?.()
           component.destroy()
         },
       }

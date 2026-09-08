@@ -836,8 +836,10 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 }
 .swatch:hover { transform: scale(1.1); }
 
-/* Menu "/" (slash): conteúdo de tippy, então carrega o próprio vidro
-   (não é um .popover — o tippy o posiciona junto ao cursor de texto) */
+/* Menu "/" (slash): montado no <body> pelo Suggestion do TipTap (Floating UI),
+   dentro do wrapper .slash-root — por isso carrega o próprio vidro
+   (não é um .popover) e precisa de z-index acima dos painéis da tela */
+.slash-root { z-index: 30; }
 .slash-menu {
   min-width: 240px; max-height: 320px; overflow-y: auto;
   padding: 8px;
@@ -858,9 +860,10 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .slash-search .query { color: var(--ink); font-weight: 600; }
 .slash-empty { padding: 8px 10px; font-size: 13px; color: var(--ink-faint); }
 
-/* Balão de formatação sobre a seleção */
+/* Balão de formatação sobre a seleção. O plugin do BubbleMenu (TipTap 3)
+   escreve position/left/top/visibility inline — aqui só o visual e o z-index */
 .bubble-menu {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: 2px; z-index: 30;
   padding: 4px 6px;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
@@ -877,7 +880,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 }
 .bubble-link input:focus { border-color: rgba(10, 132, 255, 0.5); }
 
-/* "+" de linha vazia: abre o mesmo menu do "/" */
+/* "+" de linha vazia: abre o mesmo menu do "/" (posicionado pelo FloatingMenu) */
+.floating-plus { z-index: 29; }
 .floating-plus-btn {
   display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
   background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(160, 200, 235, 0.6);
