@@ -284,22 +284,47 @@ export default function FocusBoardModal({ open, onClose, onOpenWork }) {
   const { data, updFocusBoard } = useStore()
   const dlgRef = useRef(null)
   const bodyRef = useRef(null)
+  const closeTimer = useRef(null)
   const [pickerFor, setPickerFor] = useState(null) // id do trabalho com o seletor aberto
   const [mobileTab, setMobileTab] = useState('panorama')
+  // Fechamento animado por conta própria: enquanto fecha, o dialog fica com
+  // .is-closing (só a opacidade esmaece, [open] mantido) e o close() nativo —
+  // que dispara a saída discreta de overlay/display e pintava um quadro
+  // "rasgado" sobre a estante 3D — só roda quando o fade termina, já invisível.
+  const [closing, setClosing] = useState(false)
+
+  const finishClose = () => {
+    clearTimeout(closeTimer.current)
+    setClosing(false)
+    if (dlgRef.current?.open) dlgRef.current.close()
+  }
 
   useEffect(() => {
     const dlg = dlgRef.current
     if (!dlg) return
     if (open) {
+      clearTimeout(closeTimer.current)
+      setClosing(false)
       if (!dlg.open) dlg.showModal()
       // showModal() foca o primeiro focável — a textarea — e no celular o
       // teclado subiria sozinho na abertura automática. O foco vai ao corpo.
       requestAnimationFrame(() => bodyRef.current?.focus({ preventScroll: true }))
     } else if (dlg.open) {
       setPickerFor(null)
-      dlg.close()
+      setClosing(true) // dispara o fade; o close() vem no onTransitionEnd
+      // Rede de segurança caso o transitionend não chegue (fecha mesmo assim)
+      clearTimeout(closeTimer.current)
+      closeTimer.current = setTimeout(finishClose, 500)
     }
-  }, [open])
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => clearTimeout(closeTimer.current), [])
+
+  // O fim do fade de saída (opacidade do próprio dialog) fecha o dialog nativo
+  const handleTransitionEnd = e => {
+    if (!closing || e.target !== dlgRef.current || e.propertyName !== 'opacity') return
+    finishClose()
+  }
 
   const works = pendingWorks(data)
   const lines = buildBriefing(data)
@@ -309,16 +334,17 @@ export default function FocusBoardModal({ open, onClose, onOpenWork }) {
 
   return (
     <dialog
-      className="paper-modal fb-modal"
+      className={'paper-modal fb-modal' + (closing ? ' is-closing' : '')}
       ref={dlgRef}
       aria-label="Painel de foco"
       onClose={onClose}
-      /* ESC com o seletor de trilha aberto fecha só o seletor. Cancelar o
-         keydown impede o pedido de fechamento do dialog; o onCancel é só
-         reserva — o Chrome ignora o preventDefault do cancel sem ativação
-         recente do usuário. */
+      onTransitionEnd={handleTransitionEnd}
+      /* ESC com o seletor de trilha aberto fecha só o seletor. Caso contrário,
+         cancelamos o fechamento nativo (que seria instantâneo e rasgaria o
+         quadro) e pedimos o fecho pelo React, que roda o fade de saída. ESC é
+         ativação do usuário, então o preventDefault do cancel vale aqui. */
       onKeyDown={e => { if (e.key === 'Escape' && pickerFor) { e.preventDefault(); setPickerFor(null) } }}
-      onCancel={e => { if (pickerFor) { e.preventDefault(); setPickerFor(null) } }}
+      onCancel={e => { e.preventDefault(); if (pickerFor) setPickerFor(null); else onClose() }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <button className="paper-close" type="button" aria-label="Fechar painel" onClick={onClose}>

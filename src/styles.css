@@ -1382,13 +1382,23 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
 @starting-style {
   .paper-modal[open] { opacity: 0; transform: translateY(26px) scale(0.97); }
 }
+/* Fechamento controlado por JS (o componente adiciona .is-closing e só chama
+   dialog.close() quando este fade termina). Enquanto fecha, o dialog mantém
+   [open] — ou seja, continua na top-layer como elemento normal — e apenas a
+   opacidade esmaece, SEM transform. O .close() nativo dispara a transição
+   discreta de overlay/display, que re-rasteriza a superfície do dialog por
+   cima da estante 3D e pintava um quadro "rasgado" (emenda vertical no limite
+   de tile do compositor); adiando o close() para depois do fade, esse quadro
+   acontece com o painel já invisível. */
+.paper-modal[open].is-closing { opacity: 0; transform: none; }
 .paper-modal::backdrop {
   background: rgba(130, 180, 220, 0.32);
-  backdrop-filter: blur(8px) saturate(1.2);
+  backdrop-filter: blur(8px) saturate(1.2); -webkit-backdrop-filter: blur(8px) saturate(1.2);
   opacity: 0;
   transition: opacity 0.35s ease;
 }
 .paper-modal[open]::backdrop { opacity: 1; }
+.paper-modal[open].is-closing::backdrop { opacity: 0; }
 @starting-style {
   .paper-modal[open]::backdrop { opacity: 0; }
 }
