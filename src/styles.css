@@ -338,7 +338,9 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 .highlight-card.glow-warn .big-value { color: var(--warn); }
 .highlight-card.glow-soon .big-value { color: var(--soon); }
 
-.dash-columns { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; align-items: start; }
+/* minmax(0, …) em vez de fr puro: fr tem mínimo = min-content, e os títulos
+   nowrap das listas empurravam o painel "Aulas de hoje" para fora da tela */
+.dash-columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 14px; align-items: start; }
 @media (max-width: 900px) { .dash-columns { grid-template-columns: 1fr; } }
 
 .date-list, .today-list { list-style: none; position: relative; }
