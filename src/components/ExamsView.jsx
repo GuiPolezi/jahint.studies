@@ -182,15 +182,16 @@ export default function ExamsView() {
     const past = exams.filter(inPastGroup).reverse() // a mais recente primeiro
     return { classId, cls: cls(classId), exams, future, past, next: future[0] || null }
   })
-  // Ordem = urgência: a matéria com a próxima prova mais perto vem primeiro;
-  // as que só têm provas feitas vão para o fim, da mais recente para a mais antiga
-  subjects.sort((a, b) => {
-    if (a.next && b.next) return a.next.date.localeCompare(b.next.date)
-    if (a.next || b.next) return a.next ? -1 : 1
-    return b.past[0].date.localeCompare(a.past[0].date)
-  })
-  // Matéria só com provas feitas aparece quando "Provas passadas" está ligado
-  const visible = subjects.filter(s => s.future.length > 0 || (showPast && s.past.length > 0))
+  // O toggle alterna a listagem: pendentes (padrão) ou somente as passadas.
+  // Sem passadas no filtro atual, o modo cai para pendentes — senão o usuário
+  // ficaria preso numa lista vazia com o botão do toggle escondido.
+  const viewPast = showPast && pastTotal > 0
+  const visible = subjects.filter(s => (viewPast ? s.past.length : s.future.length) > 0)
+  // Ordem = urgência: próxima prova mais perto primeiro; no modo "passadas",
+  // da mais recente para a mais antiga
+  visible.sort((a, b) => (viewPast
+    ? b.past[0].date.localeCompare(a.past[0].date)
+    : a.next.date.localeCompare(b.next.date)))
 
   const removeExam = (exam, c) => {
     if (confirm(`Excluir a ${exam.label} de ${c?.name || 'matéria removida'}?`)) delExam(exam.id)
@@ -250,7 +251,7 @@ export default function ExamsView() {
                 className={'btn-ghost btn-sm past-toggle' + (showPast ? ' on' : '')}
                 onClick={() => setShowPast(s => !s)}
                 aria-pressed={showPast}
-                title={showPast ? 'Esconder as provas feitas' : 'Mostrar as provas já realizadas ou passadas dentro de cada matéria'}
+                title={showPast ? 'Voltar para as provas pendentes' : 'Mostrar somente as provas já realizadas ou passadas'}
               >
                 <History size={14} /> Provas passadas ({pastTotal})
               </button>
@@ -287,7 +288,7 @@ export default function ExamsView() {
                         {term && <span className="term-chip">{term}</span>}
                         <span>
                           {`${n} prova${n === 1 ? '' : 's'}`}
-                          {pastCount > 0 && !showPast ? ` · ${pastCount} passada${pastCount === 1 ? '' : 's'}` : ''}
+                          {pastCount > 0 && !viewPast ? ` · ${pastCount} passada${pastCount === 1 ? '' : 's'}` : ''}
                         </span>
                       </div>
                     </div>
@@ -312,31 +313,17 @@ export default function ExamsView() {
                   </header>
 
                   <ul className="exam-rows">
-                    {s.future.map((e, j) => (
+                    {(viewPast ? s.past : s.future).map((e, j) => (
                       <ExamRow
                         key={e.id}
                         exam={e}
-                        next={j === 0}
+                        past={viewPast}
+                        next={!viewPast && j === 0}
                         onEdit={() => setModal({ initial: e })}
                         onDelete={() => removeExam(e, s.cls)}
                         onToggleDone={done => setExamDone(e.id, done)}
                       />
                     ))}
-                    {showPast && pastCount > 0 && (
-                      <>
-                        {s.future.length > 0 && <li className="exam-rows-sep">Passadas</li>}
-                        {s.past.map(e => (
-                          <ExamRow
-                            key={e.id}
-                            exam={e}
-                            past
-                            onEdit={() => setModal({ initial: e })}
-                            onDelete={() => removeExam(e, s.cls)}
-                            onToggleDone={done => setExamDone(e.id, done)}
-                          />
-                        ))}
-                      </>
-                    )}
                   </ul>
                 </article>
               )
