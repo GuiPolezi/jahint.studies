@@ -145,6 +145,9 @@ CREATE TABLE IF NOT EXISTS exams (
   exam_date DATE        NOT NULL,
   exam_time TIME        NULL,
   topics    TEXT        NULL,
+  -- Marcada como "realizada" pelo usuário (NULL = pendente). É mudança de
+  -- estado, não exclusão: o registro fica no banco e a ação pode ser desfeita.
+  done_at   DATETIME    NULL,
   CONSTRAINT fk_exams_class FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
   INDEX idx_exams_class (class_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -172,3 +175,4 @@ ALTER TABLE works ADD COLUMN focus_lane ENUM('now','next','steady','hold') NULL;
 ALTER TABLE works ADD COLUMN focus_note VARCHAR(120) NULL;
 ALTER TABLE work_tabs ADD COLUMN updated_at DATETIME NULL;
 ALTER TABLE users ADD COLUMN token_version INT UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE exams ADD COLUMN done_at DATETIME NULL;

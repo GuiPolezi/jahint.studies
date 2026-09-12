@@ -143,5 +143,6 @@ export const api = {
   listExams: () => get('/exams'),
   addExam: exam => post('/exams', exam),
   updExam: (id, exam) => put(`/exams/${id}`, exam),
+  setExamDone: (id, done) => put(`/exams/${id}/done`, { done }),
   delExam: id => del(`/exams/${id}`),
 }

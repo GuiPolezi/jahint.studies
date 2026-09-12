@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { FileText, Plus, Pencil, Trash2, Clock, Check, History } from 'lucide-react'
+import { FileText, Plus, Pencil, Trash2, Clock, Check, History, Undo2 } from 'lucide-react'
 import {
   useStore, classInfo, termLabel, ClassSelect, defaultClassId, semestersOfYear,
 } from '../store/StoreProvider'
 import { Modal, Field, DueChip, EmptyState } from './ui'
-import { formatBR, todayISO, daysUntil } from '../lib/utils'
+import { formatBR, todayISO, toISO, daysUntil } from '../lib/utils'
 
 const LABELS = ['P1', 'P2', 'P3', 'Substitutiva', 'Exame final', 'Outro']
 const WEEKDAY = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
@@ -12,6 +12,10 @@ const weekday = iso => {
   const [y, m, d] = iso.split('-').map(Number)
   return WEEKDAY[new Date(y, m - 1, d).getDay()]
 }
+
+// Prova "feita" = marcada como realizada OU com a data já passada.
+// Predicado único para agrupamento, contadores e chips nunca divergirem.
+const isDone = e => !!e.doneAt || daysUntil(e.date) < 0
 
 function ExamFormModal({ initial, presetClassId, onClose, onSaved }) {
   const { data, addExam, updExam } = useStore()
@@ -73,8 +77,16 @@ function ExamFormModal({ initial, presetClassId, onClose, onSaved }) {
 // Uma prova dentro do card da matéria: etiqueta, dia/data/hora, prazo e ações.
 // O conteúdo fica em uma linha e expande no clique — a data é o que precisa
 // saltar aos olhos.
-function ExamRow({ exam, past, next, onEdit, onDelete }) {
+function ExamRow({ exam, past, next, onEdit, onDelete, onToggleDone }) {
   const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  // Trava o botão enquanto a requisição está em voo: clique duplo não dispara
+  // duas chamadas (e o servidor ainda é idempotente, por garantia)
+  const toggleDone = async done => {
+    setBusy(true)
+    await onToggleDone(done)
+    setBusy(false)
+  }
   return (
     <li className={'exam-row' + (past ? ' past' : '') + (next ? ' next' : '')}>
       <span className="exam-row-label">{exam.label}</span>
@@ -91,10 +103,33 @@ function ExamRow({ exam, past, next, onEdit, onDelete }) {
           >📚 {exam.topics}</p>
         )}
       </div>
-      {past
-        ? <span className="exam-row-done"><Check size={13} /> feita</span>
-        : <DueChip date={exam.date} />}
+      {exam.doneAt
+        ? (
+          <span className="exam-row-done" title={`Realizada em ${formatBR(toISO(new Date(exam.doneAt)))}`}>
+            <Check size={13} /> realizada
+          </span>
+        )
+        : past
+          ? <span className="exam-row-done"><Check size={13} /> feita</span>
+          : <DueChip date={exam.date} />}
       <div className="exam-row-actions">
+        {exam.doneAt ? (
+          <button
+            className="icon-btn"
+            title="Marcar como pendente"
+            aria-label={`Marcar a ${exam.label} como pendente`}
+            disabled={busy}
+            onClick={() => toggleDone(false)}
+          ><Undo2 size={14} /></button>
+        ) : !past && (
+          <button
+            className="icon-btn"
+            title="Marcar como realizada"
+            aria-label={`Marcar a ${exam.label} como realizada`}
+            disabled={busy}
+            onClick={() => toggleDone(true)}
+          ><Check size={14} /></button>
+        )}
         <button className="icon-btn" title="Editar" onClick={onEdit}><Pencil size={14} /></button>
         <button className="icon-btn danger" title="Excluir" onClick={onDelete}><Trash2 size={14} /></button>
       </div>
@@ -103,7 +138,7 @@ function ExamRow({ exam, past, next, onEdit, onDelete }) {
 }
 
 export default function ExamsView() {
-  const { data, delExam, route } = useStore()
+  const { data, delExam, setExamDone, route } = useStore()
   const [modal, setModal] = useState(null) // {} novo | { initial } edição | { presetClassId } novo já na matéria
   const [showPast, setShowPast] = useState(false)
   // Começa no ano/semestre pedido pela navegação (ex.: clique no dashboard),
@@ -128,7 +163,7 @@ export default function ExamsView() {
     .filter(e => (fYearSafe === 'todos' ? true : classInfo(data, e.classId).year?.id === fYearSafe))
     .filter(e => (fSemSafe === 'todos' ? true : cls(e.classId)?.semesterId === fSemSafe))
     .sort((a, b) => a.date.localeCompare(b.date))
-  const pastTotal = sorted.filter(e => daysUntil(e.date) < 0).length
+  const pastTotal = sorted.filter(isDone).length
 
   // Um card por matéria, com as provas dela dentro. Só entra matéria que tem
   // pelo menos uma prova cadastrada — sem prova, sem card.
@@ -138,8 +173,8 @@ export default function ExamsView() {
     groups.get(e.classId).push(e)
   }
   const subjects = [...groups].map(([classId, exams]) => {
-    const future = exams.filter(e => daysUntil(e.date) >= 0)
-    const past = exams.filter(e => daysUntil(e.date) < 0).reverse() // a mais recente primeiro
+    const future = exams.filter(e => !isDone(e))
+    const past = exams.filter(isDone).reverse() // a mais recente primeiro
     return { classId, cls: cls(classId), exams, future, past, next: future[0] || null }
   })
   // Ordem = urgência: a matéria com a próxima prova mais perto vem primeiro;
@@ -210,7 +245,7 @@ export default function ExamsView() {
                 className={'btn-ghost btn-sm past-toggle' + (showPast ? ' on' : '')}
                 onClick={() => setShowPast(s => !s)}
                 aria-pressed={showPast}
-                title={showPast ? 'Esconder as provas que já passaram' : 'Mostrar as provas que já passaram dentro de cada matéria'}
+                title={showPast ? 'Esconder as provas feitas' : 'Mostrar as provas já realizadas ou passadas dentro de cada matéria'}
               >
                 <History size={14} /> Provas passadas ({pastTotal})
               </button>
@@ -270,6 +305,7 @@ export default function ExamsView() {
                         next={j === 0}
                         onEdit={() => setModal({ initial: e })}
                         onDelete={() => removeExam(e, s.cls)}
+                        onToggleDone={done => setExamDone(e.id, done)}
                       />
                     ))}
                     {showPast && done > 0 && (
@@ -282,6 +318,7 @@ export default function ExamsView() {
                             past
                             onEdit={() => setModal({ initial: e })}
                             onDelete={() => removeExam(e, s.cls)}
+                            onToggleDone={done => setExamDone(e.id, done)}
                           />
                         ))}
                       </>

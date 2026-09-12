@@ -11,7 +11,7 @@ const EMPTY = {
   notes: [],        // { id, classId, title, date, updatedAt, attachments }  (conteúdo carregado sob demanda)
   works: [],        // { id, classId, title, type, dueDate, delivery, members, progress, tabs, attachments, createdAt,
                     //   focus ('now'|'next'|'steady'|'hold'|null), focusNote, lastNoteAt (ms|null) }
-  exams: [],        // { id, classId, label, date, time, topics }
+  exams: [],        // { id, classId, label, date, time, topics, doneAt (ms|null) }
   activeSemesterId: null,
   // Painel de Foco: rascunho permanente + "abrir ao entrar" (um por usuário)
   focusBoard: { draft: '', autoOpen: true, updatedAt: null },
@@ -325,6 +325,12 @@ export function StoreProvider({ user, initialData, onLogout, onUserChanged, chil
       },
       async updExam(id, exam) {
         const res = await run(api.updExam(id, exam))
+        if (res) patch(d => ({ ...d, exams: d.exams.map(e => (e.id === id ? res.exam : e)) }))
+      },
+      // Marcar/desmarcar como realizada: não é otimista de propósito — em caso
+      // de falha a prova nunca chega a sair da lista, e o erro já é avisado
+      async setExamDone(id, done) {
+        const res = await run(api.setExamDone(id, done))
         if (res) patch(d => ({ ...d, exams: d.exams.map(e => (e.id === id ? res.exam : e)) }))
       },
       async delExam(id) {

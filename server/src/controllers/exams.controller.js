@@ -1,5 +1,5 @@
 // Provas.
-import { reqString, optString, reqDate, optTime } from '../lib/validate.js'
+import { bad, reqString, optString, reqDate, optTime } from '../lib/validate.js'
 import * as Exams from '../models/exams.model.js'
 import { assertClass, assertExam } from '../models/ownership.js'
 
@@ -28,6 +28,12 @@ export async function update(req, res) {
   await assertExam(req.userId, req.params.id)
   const exam = await Exams.updateExam(req.params.id, await payload(req))
   res.json({ exam })
+}
+
+export async function setDone(req, res) {
+  await assertExam(req.userId, req.params.id)
+  if (typeof req.body.done !== 'boolean') bad('"done" deve ser verdadeiro ou falso.')
+  res.json({ exam: await Exams.setExamDone(req.params.id, req.body.done) })
 }
 
 export async function remove(req, res) {

@@ -24,7 +24,8 @@ export default function Dashboard() {
   const activeClassIds = new Set(activeClasses.map(c => c.id))
   const inSemester = classId => !activeSem || activeClassIds.has(classId)
 
-  const semesterExams = data.exams.filter(e => inSemester(e.classId))
+  // Prova marcada como realizada sai das próximas datas e dos contadores
+  const semesterExams = data.exams.filter(e => inSemester(e.classId) && !e.doneAt)
   const semesterWorks = data.works.filter(w => inSemester(w.classId))
 
   // Junta provas + trabalhos pendentes numa única linha do tempo
