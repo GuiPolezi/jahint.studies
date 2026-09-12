@@ -14,6 +14,7 @@ import { readImageResized } from '../lib/utils'
 import { api } from '../lib/api'
 import { SlashCommands, makeSuggestion } from './SlashMenu'
 import EditorBubbleMenu from './EditorBubbleMenu'
+import Indent, { IndentEnterReset } from './editorIndent'
 
 // Conteúdo já carregado nesta sessão, por aba/anotação. Sem esse cache,
 // alternar entre as abas de um trabalho refazia a busca no servidor: surgia
@@ -128,7 +129,11 @@ export default function RichEditor({ initial, onChange, placeholder = 'Escreva a
       TTImage.configure({ allowBase64: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder }),
+      // Antes do SlashCommands de propósito: o Enter com o menu "/" aberto
+      // pertence ao menu (atalhos executam na ordem inversa do registro)
+      IndentEnterReset,
       SlashCommands.configure({ suggestion: slashSuggestion }),
+      Indent,
     ],
     content: initial || '',
     onUpdate: ({ editor }) => onChange?.(editor.getJSON()),

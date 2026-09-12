@@ -910,8 +910,19 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--in
 }
 .ProseMirror pre {
   background: #10243a; color: #d6e9ff; border-radius: 12px; padding: 13px 16px; overflow-x: auto;
+  tab-size: 4; /* Tab dentro do bloco de código insere \t literal */
 }
 .ProseMirror pre code { background: none; color: inherit; padding: 0; }
+
+/* Recuo de bloco por Tab/Shift-Tab (extensão Indent) — 24px por nível */
+.ProseMirror [data-indent='1'] { padding-left: 24px; }
+.ProseMirror [data-indent='2'] { padding-left: 48px; }
+.ProseMirror [data-indent='3'] { padding-left: 72px; }
+.ProseMirror [data-indent='4'] { padding-left: 96px; }
+.ProseMirror [data-indent='5'] { padding-left: 120px; }
+.ProseMirror [data-indent='6'] { padding-left: 144px; }
+.ProseMirror [data-indent='7'] { padding-left: 168px; }
+.ProseMirror [data-indent='8'] { padding-left: 192px; }
 .ProseMirror hr { border: none; border-top: 2px solid rgba(120,160,200,0.4); margin: 1.1em 0; border-radius: 2px; }
 .ProseMirror img { max-width: 100%; border-radius: 12px; box-shadow: var(--shadow-soft); }
 .ProseMirror img.ProseMirror-selectednode { outline: 3px solid var(--accent); }
@@ -1691,6 +1702,7 @@ body:has(.paper-modal[open]) .content { overflow: hidden; }
   padding: var(--rule) 16px var(--rule) calc(var(--margin-x) + 12px);
   border: 1px solid rgba(255,255,255,0.9); border-radius: 16px;
   font-size: 14.5px; line-height: var(--rule); color: var(--ink);
+  tab-size: 4; /* Tab insere \t (ver onTabKey no FocusBoard) */
   background:
     linear-gradient(90deg,
       transparent calc(var(--margin-x) - 1px),

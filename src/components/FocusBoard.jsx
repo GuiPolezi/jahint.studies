@@ -85,6 +85,20 @@ function DraftPaper({ open }) {
     timer.current = setTimeout(flush, 600)
   }
 
+  // Tab insere tabulação em vez de sair do campo (estilo bloco de notas);
+  // Shift-Tab continua saindo — rota de fuga de quem navega por teclado.
+  const onTabKey = e => {
+    if (e.key !== 'Tab' || e.shiftKey) return
+    e.preventDefault()
+    const el = e.currentTarget
+    // execCommand preserva o undo nativo (Ctrl+Z) e dispara o onChange acima;
+    // se o navegador não suportar, setRangeText grava e sincroniza na mão
+    if (!document.execCommand('insertText', false, '\t')) {
+      el.setRangeText('\t', el.selectionStart, el.selectionEnd, 'end')
+      onChange({ target: el })
+    }
+  }
+
   useEffect(() => { if (!open) flush() }, [open, flush])
   useEffect(() => () => { flush() }, [flush]) // desmontou (navegou para um trabalho)
 
@@ -98,6 +112,7 @@ function DraftPaper({ open }) {
         className="fb-draft"
         value={text}
         onChange={onChange}
+        onKeyDown={onTabKey}
         placeholder="Como você organizou os trabalhos? O que vem primeiro, o que fica para o fim de semana, o que precisa de atenção…"
       />
       <p className="fb-draft-foot">{editedLabel(data.focusBoard.updatedAt)}</p>
