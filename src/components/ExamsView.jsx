@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { FileText, Plus, Pencil, Trash2, Clock, Check, History, Undo2 } from 'lucide-react'
+import { FileText, Plus, Pencil, Trash2, Clock, Check, History, Undo2, CircleAlert } from 'lucide-react'
 import {
   useStore, classInfo, termLabel, ClassSelect, defaultClassId, semestersOfYear,
 } from '../store/StoreProvider'
 import { Modal, Field, DueChip, EmptyState } from './ui'
-import { formatBR, todayISO, toISO, daysUntil } from '../lib/utils'
+import { formatBR, todayISO, toISO, examIsPast } from '../lib/utils'
 
 const LABELS = ['P1', 'P2', 'P3', 'Substitutiva', 'Exame final', 'Outro']
 const WEEKDAY = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
@@ -13,9 +13,10 @@ const weekday = iso => {
   return WEEKDAY[new Date(y, m - 1, d).getDay()]
 }
 
-// Prova "feita" = marcada como realizada OU com a data já passada.
-// Predicado único para agrupamento, contadores e chips nunca divergirem.
-const isDone = e => !!e.doneAt || daysUntil(e.date) < 0
+// Entra no grupo "Passadas": marcada como realizada OU com data/horário já
+// vencidos. Passada ≠ realizada — quem passou sem marcação fica sinalizada
+// como "não registrada". Predicado único para agrupamento e contadores.
+const inPastGroup = e => !!e.doneAt || examIsPast(e)
 
 function ExamFormModal({ initial, presetClassId, onClose, onSaved }) {
   const { data, addExam, updExam } = useStore()
@@ -110,7 +111,11 @@ function ExamRow({ exam, past, next, onEdit, onDelete, onToggleDone }) {
           </span>
         )
         : past
-          ? <span className="exam-row-done"><Check size={13} /> feita</span>
+          ? (
+            <span className="exam-row-unmarked" title="A data desta prova já passou, mas ela não foi marcada como realizada">
+              <CircleAlert size={13} /> não registrada
+            </span>
+          )
           : <DueChip date={exam.date} />}
       <div className="exam-row-actions">
         {exam.doneAt ? (
@@ -121,7 +126,7 @@ function ExamRow({ exam, past, next, onEdit, onDelete, onToggleDone }) {
             disabled={busy}
             onClick={() => toggleDone(false)}
           ><Undo2 size={14} /></button>
-        ) : !past && (
+        ) : (
           <button
             className="icon-btn"
             title="Marcar como realizada"
@@ -163,7 +168,7 @@ export default function ExamsView() {
     .filter(e => (fYearSafe === 'todos' ? true : classInfo(data, e.classId).year?.id === fYearSafe))
     .filter(e => (fSemSafe === 'todos' ? true : cls(e.classId)?.semesterId === fSemSafe))
     .sort((a, b) => a.date.localeCompare(b.date))
-  const pastTotal = sorted.filter(isDone).length
+  const pastTotal = sorted.filter(inPastGroup).length
 
   // Um card por matéria, com as provas dela dentro. Só entra matéria que tem
   // pelo menos uma prova cadastrada — sem prova, sem card.
@@ -173,8 +178,8 @@ export default function ExamsView() {
     groups.get(e.classId).push(e)
   }
   const subjects = [...groups].map(([classId, exams]) => {
-    const future = exams.filter(e => !isDone(e))
-    const past = exams.filter(isDone).reverse() // a mais recente primeiro
+    const future = exams.filter(e => !inPastGroup(e))
+    const past = exams.filter(inPastGroup).reverse() // a mais recente primeiro
     return { classId, cls: cls(classId), exams, future, past, next: future[0] || null }
   })
   // Ordem = urgência: a matéria com a próxima prova mais perto vem primeiro;
@@ -265,7 +270,10 @@ export default function ExamsView() {
               const { sem, year } = classInfo(data, s.classId)
               const term = year ? termLabel(sem, year) : ''
               const n = s.exams.length
-              const done = s.past.length
+              const pastCount = s.past.length
+              // Passadas sem marcação de realizada — o aluno pode ter feito e
+              // esquecido de registrar no sistema
+              const unmarked = s.past.filter(e => !e.doneAt).length
               return (
                 <article
                   key={s.classId}
@@ -279,13 +287,19 @@ export default function ExamsView() {
                         {term && <span className="term-chip">{term}</span>}
                         <span>
                           {`${n} prova${n === 1 ? '' : 's'}`}
-                          {done > 0 && !showPast ? ` · ${done} feita${done === 1 ? '' : 's'}` : ''}
+                          {pastCount > 0 && !showPast ? ` · ${pastCount} passada${pastCount === 1 ? '' : 's'}` : ''}
                         </span>
                       </div>
                     </div>
                     <div className="exam-subject-side">
-                      {!s.next && (
-                        <span className="exam-subject-none"><Check size={12} /> Todas feitas</span>
+                      {!s.next && (unmarked > 0
+                        ? (
+                          <span
+                            className="exam-subject-unmarked"
+                            title="Há provas passadas sem marcação de realizada nesta matéria"
+                          ><CircleAlert size={12} /> {unmarked} sem registro</span>
+                        )
+                        : <span className="exam-subject-none"><Check size={12} /> Todas realizadas</span>
                       )}
                       {s.cls && (
                         <button
@@ -308,7 +322,7 @@ export default function ExamsView() {
                         onToggleDone={done => setExamDone(e.id, done)}
                       />
                     ))}
-                    {showPast && done > 0 && (
+                    {showPast && pastCount > 0 && (
                       <>
                         {s.future.length > 0 && <li className="exam-rows-sep">Passadas</li>}
                         {s.past.map(e => (

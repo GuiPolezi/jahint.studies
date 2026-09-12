@@ -3,7 +3,7 @@ import {
   Sparkles, ChevronRight, Clock,
 } from 'lucide-react'
 import { useStore, classInfo, termLabel } from '../store/StoreProvider'
-import { daysUntil, urgency, urgencyLabel, formatBR, DAYS } from '../lib/utils'
+import { daysUntil, urgency, urgencyLabel, formatBR, examIsPast, DAYS } from '../lib/utils'
 import { DueChip, EmptyState } from './ui'
 
 export default function Dashboard() {
@@ -24,8 +24,9 @@ export default function Dashboard() {
   const activeClassIds = new Set(activeClasses.map(c => c.id))
   const inSemester = classId => !activeSem || activeClassIds.has(classId)
 
-  // Prova marcada como realizada sai das próximas datas e dos contadores
-  const semesterExams = data.exams.filter(e => inSemester(e.classId) && !e.doneAt)
+  // Prova realizada ou já ocorrida (data/horário vencidos) sai das próximas
+  // datas e dos contadores — mesmo critério do grupo "Passadas" da tela de Provas
+  const semesterExams = data.exams.filter(e => inSemester(e.classId) && !e.doneAt && !examIsPast(e))
   const semesterWorks = data.works.filter(w => inSemester(w.classId))
 
   // Junta provas + trabalhos pendentes numa única linha do tempo
@@ -63,7 +64,7 @@ export default function Dashboard() {
   const nextDays = next ? daysUntil(next.date) : null
 
   const pendingWorks = semesterWorks.filter(w => (w.progress ?? 0) < 100).length
-  const futureExams = semesterExams.filter(e => daysUntil(e.date) >= 0).length
+  const futureExams = semesterExams.length
 
   // Aulas de hoje (do semestre ativo)
   const todayDow = new Date().getDay()

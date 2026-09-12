@@ -40,6 +40,17 @@ export function daysUntil(iso) {
   return Math.round((target - now) / 86400000)
 }
 
+// A prova já aconteceu? Antes do dia, não; no dia, só depois do horário de
+// início — e sem horário cadastrado o dia inteiro conta como "ainda vai ter".
+export function examIsPast(exam) {
+  const days = daysUntil(exam.date)
+  if (days !== 0) return days < 0
+  if (!exam.time) return false
+  const [h, min] = exam.time.split(':').map(Number)
+  const now = new Date()
+  return now.getHours() * 60 + now.getMinutes() > h * 60 + min
+}
+
 // Nível de urgência conforme a data se aproxima
 export function urgency(days) {
   if (days == null) return 'ok'
